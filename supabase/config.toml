@@ -1,0 +1,16 @@
+project_id = "vppcnlzbpovswfjbdmpm"
+
+[functions.upload-screenshot]
+verify_jwt = false
+
+[functions.upload-recording]
+verify_jwt = false
+
+[functions.update-contest-statuses]
+verify_jwt = false
+
+[functions.create-wallet-topup]
+verify_jwt = false
+
+[functions.verify-wallet-topup]
+verify_jwt = false

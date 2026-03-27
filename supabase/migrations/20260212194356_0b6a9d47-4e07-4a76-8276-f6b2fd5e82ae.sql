@@ -1,0 +1,1 @@
+ALTER TABLE public.wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_amount_cents_check;

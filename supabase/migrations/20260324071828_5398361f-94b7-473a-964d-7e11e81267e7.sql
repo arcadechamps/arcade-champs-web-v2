@@ -1,0 +1,1 @@
+ALTER TABLE public.games ADD COLUMN keymapping jsonb DEFAULT NULL;

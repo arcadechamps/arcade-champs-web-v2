@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trg_apply_wallet_transaction ON public.wallet_transactions;

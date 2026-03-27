@@ -1,0 +1,121 @@
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ContestRulesModal.tsx
+  9:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\PageMeta.tsx
+  8:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\dashboard\AdminContestManager.tsx
+  234:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\dashboard\AdminPlayerList.tsx
+   65:28  error  Unexpected any. Specify a different type                                                                                                                 @typescript-eslint/no-explicit-any
+   65:71  error  Unexpected any. Specify a different type                                                                                                                 @typescript-eslint/no-explicit-any
+  211:63  error  React Hook "usePagination" cannot be called inside a callback. React Hooks must be called in a React function component or a custom React Hook function  react-hooks/rules-of-hooks
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\dashboard\ChangePasswordCard.tsx
+  79:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\dashboard\GameFormDialog.tsx
+  142:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  155:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  162:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\dashboard\Leaderboard.tsx
+  94:59  error  React Hook "usePagination" is called in function "renderTable" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word "use"  react-hooks/rules-of-hooks
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\dashboard\ProfileSettings.tsx
+   83:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  131:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  171:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  194:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\dashboard\TablePagination.tsx
+  71:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\dashboard\WalletPanel.tsx
+  79:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\badge.tsx
+  29:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\button.tsx
+  47:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\command.tsx
+  24:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\form.tsx
+  129:10  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\navigation-menu.tsx
+  111:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\sidebar.tsx
+  636:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\sonner.tsx
+  27:19  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\textarea.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\components\ui\toggle.tsx
+  37:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\hooks\useAntiCheat.ts
+  55:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  83:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\hooks\useAuth.tsx
+   54:42  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   55:42  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  126:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\pages\Contest.tsx
+  122:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\pages\ContestPlay.tsx
+   76:37  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   77:31  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  101:39  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  102:40  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  108:6   warning  React Hook useEffect has a missing dependency: 'rulesInitialised'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  321:41  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  695:48  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\pages\FreePlay.tsx
+  26:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\pages\Games.tsx
+   92:32  error    Unexpected any. Specify a different type                                                                                                                                                   @typescript-eslint/no-explicit-any
+  109:34  error    Unexpected any. Specify a different type                                                                                                                                                   @typescript-eslint/no-explicit-any
+  116:36  error    Unexpected any. Specify a different type                                                                                                                                                   @typescript-eslint/no-explicit-any
+  129:9   warning  The 'contestById' object makes the dependencies of useCallback Hook (at line 185) change on every render. To fix this, wrap the initialization of 'contestById' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\pages\Index.tsx
+  115:28  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  158:29  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  172:38  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  205:66  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  206:66  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  214:44  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  216:41  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  218:46  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  267:6   warning  React Hook useCallback has an unnecessary dependency: 'queryClient'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\pages\PaymentSuccess.tsx
+  53:19  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+  60:6   warning  React Hook useEffect has missing dependencies: 'queryClient' and 'user'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\danju\devs\client-projects\arcade-legends\src\scripts\generate-sitemap.ts
+   4:1   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  56:44  error  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\danju\devs\client-projects\arcade-legends\tailwind.config.ts
+  107:13  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+✖ 60 problems (46 errors, 14 warnings)
+
