@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 265 78% 7%;
+    --foreground: 270 20% 90%;
+
+    --card: 265 60% 12%;
+    --card-foreground: 270 20% 90%;
+
+    --popover: 265 60% 12%;
+    --popover-foreground: 270 20% 90%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 265 40% 18%;
+    --secondary-foreground: 270 20% 90%;
+
+    --muted: 265 30% 15%;
+    --muted-foreground: 265 15% 55%;
+
+    --accent: 330 81% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 265 30% 20%;
+    --input: 265 30% 20%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    --neon-blue: 217 91% 60%;
+    --neon-pink: 330 81% 60%;
+    --neon-purple: 270 70% 50%;
+    --neon-green: 150 80% 50%;
+
+    --sidebar-background: 265 60% 10%;
+    --sidebar-foreground: 270 20% 90%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 265 40% 18%;
+    --sidebar-accent-foreground: 270 20% 90%;
+    --sidebar-border: 265 30% 20%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, .font-arcade {
+    font-family: 'Press Start 2P', cursive;
+  }
+}
+
+@layer utilities {
+  .text-glow-blue {
+    text-shadow: 0 0 10px hsl(217 91% 60% / 0.8), 0 0 30px hsl(217 91% 60% / 0.4), 0 0 60px hsl(217 91% 60% / 0.2);
+  }
+
+  .text-glow-pink {
+    text-shadow: 0 0 10px hsl(330 81% 60% / 0.8), 0 0 30px hsl(330 81% 60% / 0.4), 0 0 60px hsl(330 81% 60% / 0.2);
+  }
+
+  .neon-border {
+    box-shadow: 0 0 5px hsl(217 91% 60% / 0.5), 0 0 20px hsl(217 91% 60% / 0.2), inset 0 0 5px hsl(217 91% 60% / 0.1);
+  }
+
+  .neon-border-pink {
+    box-shadow: 0 0 5px hsl(330 81% 60% / 0.5), 0 0 20px hsl(330 81% 60% / 0.2), inset 0 0 5px hsl(330 81% 60% / 0.1);
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(265 30% 20% / 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(265 30% 20% / 0.3) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Site-wide custom scrollbar ── */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(265 60% 10%);
+  border-left: 1px solid hsl(265 30% 20%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, hsl(217 91% 60% / 0.6), hsl(330 81% 60% / 0.4));
+  border-radius: 999px;
+  border: 2px solid hsl(265 60% 10%);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, hsl(217 91% 60% / 0.9), hsl(330 81% 60% / 0.7));
+  box-shadow: 0 0 6px hsl(217 91% 60% / 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: hsl(265 60% 10%);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(217 91% 60% / 0.5) hsl(265 60% 10%);
+}
+
+@layer utilities {
+  /* Scroll Reveal – hidden state */
+  .sr-hidden {
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .sr-hidden.sr-fade-up {
+    transform: translateY(30px);
+  }
+  .sr-hidden.sr-fade-left {
+    transform: translateX(-40px);
+  }
+  .sr-hidden.sr-fade-right {
+    transform: translateX(40px);
+  }
+  .sr-hidden.sr-scale-in {
+    transform: scale(0.92);
+  }
+
+  /* Scroll Reveal – visible state */
+  .sr-visible {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+}

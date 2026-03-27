@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Player</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --ejs-primary: #563DE4;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a0a;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+    }
+    #game {
+      width: 100%;
+      height: 100%;
+    }
+    .ejs_start_button {
+      background-color: var(--ejs-primary) !important;
+    }
+    .error-msg {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      color: var(--ejs-primary);
+      font-weight: bold;
+      font-size: 1.1rem;
+      text-align: center;
+      padding: 2rem;
+    }
+    .loading-msg {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      color: var(--ejs-primary);
+      font-size: 1rem;
+      text-align: center;
+      padding: 2rem;
+      gap: 1rem;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(86, 61, 228, 0.3);
+      border-top-color: var(--ejs-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <script>
+    // ── Parse query parameters ──
+    const params = new URLSearchParams(window.location.search);
+    const rom = params.get('rom');   // Full URL to ROM in Supabase Storage
+    const core = params.get('core');
+    const title = params.get('title') || 'Game';
+    const fileName = params.get('fileName'); // Original ROM filename for MAME identification
+    const bios = params.get('bios'); // BIOS URL
+
+    // Patch WebGL context creation to enable preserveDrawingBuffer
+    // so canvas.toDataURL() returns actual pixel data instead of blank
+    (function() {
+      var origGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+        if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+          attrs = Object.assign({}, attrs || {}, { preserveDrawingBuffer: true });
+        }
+        return origGetContext.call(this, type, attrs);
+      };
+    })();
+
+    if (!rom || !core) {
+      document.getElementById('game').innerHTML =
+        '<div class="error-msg">No game specified. Missing rom or core parameter.</div>';
+    } else {
+
+      // ── Single-source screenshot deduplication guard ──
+      // Tracks the last time a screenshot was sent to the parent.
+      // Prevents any second path from firing within SCREENSHOT_DEBOUNCE_MS.
+      const SCREENSHOT_DEBOUNCE_MS = 3000;
+      let screenshotSentAt = 0;
+
+      function sendScreenshot(dataUrl) {
+        const now = Date.now();
+        if (now - screenshotSentAt < SCREENSHOT_DEBOUNCE_MS) {
+          console.warn('[GameFrame] Screenshot deduplicated — ignored duplicate within', SCREENSHOT_DEBOUNCE_MS, 'ms');
+          return;
+        }
+        if (!dataUrl || dataUrl.length < 500) {
+          console.warn('[GameFrame] Screenshot data too small, skipping.');
+          return;
+        }
+        screenshotSentAt = now;
+        console.log('[GameFrame] Screenshot sent to parent at', now);
+        window.parent.postMessage({ type: 'emulator_screenshot', data: dataUrl }, '*');
+      }
+
+      // ── Screenshot: direct canvas capture first, html2canvas fallback ──
+      function takeScreenshot() {
+        try {
+          // Try direct canvas capture first (works for WebGL with preserveDrawingBuffer)
+          var canvases = document.querySelectorAll('canvas');
+          var best = null, bestPx = 0;
+          canvases.forEach(function(c) {
+            var px = c.width * c.height;
+            if (px > bestPx) { bestPx = px; best = c; }
+          });
+          if (best && best.width >= 10 && best.height >= 10) {
+            var dataUrl = best.toDataURL('image/png');
+            if (dataUrl && dataUrl.length > 500) {
+              console.log('[GameFrame] Direct canvas screenshot captured (' + best.width + 'x' + best.height + ')');
+              sendScreenshot(dataUrl);
+              return;
+            }
+          }
+          // Fallback to html2canvas if no usable canvas found
+          if (typeof html2canvas !== 'undefined') {
+            html2canvas(document.body, {
+              backgroundColor: '#0a0a0a',
+              useCORS: true,
+              logging: false
+            }).then(function(canvas) {
+              console.log('[GameFrame] html2canvas fallback screenshot (' + canvas.width + 'x' + canvas.height + ')');
+              sendScreenshot(canvas.toDataURL('image/png'));
+            }).catch(function(err) {
+              console.error('[GameFrame] html2canvas fallback failed:', err);
+            });
+          }
+        } catch (e) {
+          console.error('[GameFrame] Screenshot error:', e);
+        }
+      }
+
+      // ── EmulatorJS configuration ──
+      window.EJS_player = '#game';
+      window.EJS_core = core;
+      window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
+      window.EJS_startButtonName = 'Play ' + title;
+      window.EJS_startOnLoaded = false;
+      window.EJS_color = '#563DE4';
+      window.EJS_backgroundColor = '#0a0a0a';
+
+      // Disable EJS default screenshot mechanism to prevent rogue dual captures
+      window.EJS_onScreenshot = function() {};
+      window.EJS_screenshot = false;
+
+      if (bios) {
+        window.EJS_biosUrl = bios;
+      }
+
+      // ── Low-quality screen capture config (saves storage) ──
+      window.EJS_screenCapture = {
+        photo: { source: 'canvas', format: 'png', upscale: 0 },
+        video: { format: 'webm', upscale: 0, fps: 10, videoBitrate: 200000, audioBitrate: 64000 }
+      };
+
+      window.EJS_defaultOptions = {
+        'save-state-location': 'browser'
+      };
+
+      window.EJS_Buttons = {
+        volume: true,
+        fullscreen: true,
+        playPause: false,
+        mute: true,
+        settings: true,
+        cacheManager: true,
+        restart: false,
+        saveState: false,
+        loadState: false,
+        screenRecord: false,
+        gamepad: true,
+        cheat: false,
+        saveSavFiles: false,
+        loadSavFiles: false,
+        quickSave: false,
+        quickLoad: false,
+        screenshot: false, // UI button stays hidden — we control via postMessage
+        exitEmulation: false
+      };
+
+      // ── Detect Canvas Creation to signal game start reliably ──
+      const observer = new MutationObserver((mutations, obs) => {
+        if (document.querySelector('canvas')) {
+          console.log('[GameFrame] Canvas created, signaling game start');
+          window.parent.postMessage({ type: 'emulator_game_start' }, '*');
+          obs.disconnect(); // stop observing
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // ── Callbacks ──
+      window.EJS_onGameStart = function () {
+        // Fallback in case MutationObserver misses it, though unlikely
+        window.parent.postMessage({ type: 'emulator_game_start' }, '*');
+      };
+
+      // Listen for commands from parent React app
+      // Recording is now handled by RecordRTC at the parent level (GamePlayer.tsx)
+      window.addEventListener('message', function (e) {
+        if (e.data?.type === 'CAPTURE_SCREENSHOT') takeScreenshot();
+      });
+
+      // Forward keyboard events to parent for anti-cheat / analytics
+      const forwardKey = (evt) => {
+        window.parent.postMessage({
+          type: 'keyboard-event',
+          key: evt.key,
+          code: evt.code,
+          shiftKey: evt.shiftKey,
+          ctrlKey: evt.ctrlKey,
+          altKey: evt.altKey,
+          metaKey: evt.metaKey,
+          timestamp: Date.now()
+        }, '*');
+      };
+      window.addEventListener('keydown', forwardKey, { capture: true });
+      document.addEventListener('keydown', forwardKey, { capture: true });
+
+      // ── Gamepad polling ──
+      // Track button state changes and forward to parent
+      var prevGamepadButtons = {};
+      var gamepadPollId = null;
+
+      function pollGamepads() {
+        var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (var gi = 0; gi < gamepads.length; gi++) {
+          var gp = gamepads[gi];
+          if (!gp) continue;
+          var key = 'gp' + gi;
+          if (!prevGamepadButtons[key]) prevGamepadButtons[key] = {};
+          for (var bi = 0; bi < gp.buttons.length; bi++) {
+            var pressed = gp.buttons[bi].pressed;
+            if (pressed !== prevGamepadButtons[key][bi]) {
+              prevGamepadButtons[key][bi] = pressed;
+              if (pressed) {
+                window.parent.postMessage({
+                  type: 'gamepad-event',
+                  gamepadIndex: gi,
+                  button: bi,
+                  timestamp: Date.now()
+                }, '*');
+              }
+            }
+          }
+        }
+        gamepadPollId = requestAnimationFrame(pollGamepads);
+      }
+      gamepadPollId = requestAnimationFrame(pollGamepads);
+
+      // ── Load ROM as binary and start EmulatorJS ──
+      // Unified approach: always fetch ROM as Uint8Array for all cores.
+      document.getElementById('game').innerHTML =
+        '<div class="loading-msg"><div class="spinner"></div>Loading ROM...</div>';
+
+      fetch(rom)
+        .then(function (r) {
+          if (!r.ok) throw new Error('Failed to fetch ROM: ' + r.status);
+          return r.arrayBuffer();
+        })
+        .then(function (buf) {
+          document.getElementById('game').innerHTML = '';
+          if (fileName) {
+            window.EJS_gameName = fileName.replace(/\.[^.]+$/, '');
+          }
+          window.EJS_gameUrl = new Uint8Array(buf);
+          var s = document.createElement('script');
+          s.src = 'https://cdn.emulatorjs.org/stable/data/loader.js';
+          document.body.appendChild(s);
+        })
+        .catch(function (err) {
+          document.getElementById('game').innerHTML =
+            '<div class="error-msg">Failed to load ROM: ' + err.message + '</div>';
+        });
+    }
+  </script>
+</body>
+</html>

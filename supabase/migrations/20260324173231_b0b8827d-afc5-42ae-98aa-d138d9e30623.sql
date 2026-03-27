@@ -1,0 +1,1 @@
+ALTER TABLE public.contests ADD COLUMN prize_image_path text;
