@@ -86,7 +86,7 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
             <CardTitle className="font-arcade text-[10px] text-foreground flex items-center gap-2">
               <Wallet className="h-4 w-4 text-neon-green" /> My Wallet
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80" onClick={() => onNavigate?.("wallet")}>
+            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => onNavigate?.("wallet")}>
               View <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
           </CardHeader>
@@ -169,7 +169,7 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
           <CardTitle className="font-arcade text-[10px] text-foreground flex items-center gap-2">
             <Calendar className="h-4 w-4 text-accent" /> Active Contests
           </CardTitle>
-          <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80" onClick={() => onNavigate?.("contests")}>
+          <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => onNavigate?.("contests")}>
             Browse All <ArrowRight className="ml-1 h-3 w-3" />
           </Button>
         </CardHeader>
@@ -202,7 +202,7 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
           <CardTitle className="font-arcade text-[10px] text-foreground flex items-center gap-2">
             <Gamepad2 className="h-4 w-4 text-primary" /> Recent Sessions
           </CardTitle>
-          <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80" onClick={() => onNavigate?.("sessions")}>
+          <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => onNavigate?.("sessions")}>
             View All <ArrowRight className="ml-1 h-3 w-3" />
           </Button>
         </CardHeader>
