@@ -113,7 +113,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
             <CardTitle className="font-arcade text-[10px] text-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-neon-green" /> Revenue Summary
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80" onClick={() => onNavigate?.("sessions")}>
+            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => onNavigate?.("sessions")}>
               Ledger <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
           </CardHeader>
@@ -163,7 +163,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
             <CardTitle className="font-arcade text-[10px] text-foreground flex items-center gap-2">
               <AlertTriangle className={`h-4 w-4 ${flaggedLogs.length > 0 ? "text-destructive" : "text-muted-foreground"}`} /> Anti-Cheat Alerts
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80" onClick={() => onNavigate?.("anticheat")}>
+            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => onNavigate?.("anticheat")}>
               Review <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
           </CardHeader>
