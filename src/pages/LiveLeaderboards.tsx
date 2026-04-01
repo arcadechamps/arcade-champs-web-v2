@@ -298,16 +298,14 @@ const LiveLeaderboards = () => {
 
       <div className="min-h-screen pb-24">
         {/* Hero header */}
-        <div className="relative overflow-hidden mb-8">
+        <div className="bg-grid relative overflow-hidden mb-8">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent pointer-events-none" />
           <div className="container mx-auto px-4 py-10 text-center relative z-10">
             <div className="inline-flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-primary/20 border border-primary/30">
-                <Zap className="h-8 w-8 text-primary" />
-              </div>
+
             </div>
             <h1 className="font-arcade text-xl md:text-2xl text-foreground mb-2">
-              Live Scores
+             View  <span className="text-neon-pink text-glow-pink">Live</span> Scores
             </h1>
             <p className="text-muted-foreground max-w-md mx-auto">
               Real-time top 10 leaderboards for every active contest. Scores refresh automatically.

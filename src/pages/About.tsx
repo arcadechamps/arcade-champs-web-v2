@@ -89,7 +89,6 @@ const About = () => {
       {/* Hero Section */}
       <section className="bg-grid py-24">
         <div ref={heroRef} className="container max-w-4xl text-center">
-          <span className="mb-4 inline-block font-arcade text-[10px] text-accent">ABOUT US</span>
           <h1 className="mb-6 font-arcade text-2xl leading-relaxed text-foreground md:text-4xl">
             Skill-Based <span className="text-primary text-glow-blue">Retro Gaming</span>
           </h1>
