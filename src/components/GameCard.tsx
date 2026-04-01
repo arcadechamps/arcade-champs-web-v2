@@ -28,52 +28,83 @@ const GameCard = ({
   contestSlug,
   onContestClick,
 }: GameCardProps) => (
-  <div className="group overflow-hidden rounded-lg border border-border/50 bg-card transition-all duration-300 hover:neon-border hover:-translate-y-1">
-    <div className="flex aspect-video items-center justify-center bg-secondary/30 overflow-hidden">
+  <div className="group overflow-hidden rounded-lg border border-border/50 bg-card transition-all duration-300 hover:neon-border-pink hover:-translate-y-1 flex flex-col h-full">
+    <div className="relative h-48 w-full bg-[#0F172A] overflow-hidden shrink-0">
       {thumbnailPath ? (
         <img
           src={thumbUrl(thumbnailPath)}
           alt={title}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80"
           loading="lazy"
         />
       ) : (
-        <Gamepad2 className="h-16 w-16 text-primary/30 transition-colors group-hover:text-primary/60" />
+        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-neon-pink/20 flex flex-col items-center justify-center">
+          <Gamepad2 className="h-12 w-12 text-primary/40 mb-2 transition-transform duration-300 group-hover:scale-110" />
+        </div>
       )}
-    </div>
-    <div className="p-4">
-      <h3 className="mb-1 font-arcade text-[10px] leading-relaxed text-foreground">
-        {title}
-      </h3>
-      {description && (
-        <p className="mb-3 text-xs text-muted-foreground line-clamp-2">{description}</p>
-      )}
-      <div className="mb-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Users className="h-3 w-3 text-primary" />
-          {playCount} {playCount === 1 ? "play" : "plays"}
-        </span>
-        {topPlayer && (
-          <span className="flex items-center gap-1">
-            <Crown className="h-3 w-3 text-neon-pink" />
-            {topPlayer}
-          </span>
+      
+      {/* Top Badges */}
+      <div className="absolute top-3 left-3 flex items-center gap-2">
+        {contestSlug && (
+          <div className="flex items-center gap-1.5 rounded-full bg-neon-pink px-3 py-1 text-[11px] font-bold text-white shadow-sm">
+            <Trophy className="h-3.5 w-3.5" /> Contest Available
+          </div>
         )}
       </div>
-      <div className="flex gap-2">
-        <Button size="sm" className={`${contestSlug ? 'flex-1' : 'w-full'} bg-primary text-primary-foreground hover:bg-primary/80 text-xs`} asChild>
+    </div>
+    
+    <div className="p-5 flex flex-col gap-5 bg-[#172033] flex-1">
+      {/* Title & Description */}
+      <div>
+        <h3 className="mb-2 text-xl font-bold text-white leading-tight capitalize">{title}</h3>
+        {description ? (
+          <p className="text-[13px] text-slate-300 line-clamp-2">{description}</p>
+        ) : (
+          <p className="text-[13px] text-slate-300">Play the classic {title} arcade game.</p>
+        )}
+      </div>
+
+      {/* Info Boxes */}
+      <div className="grid grid-cols-2 gap-3 mt-auto">
+        <div className="flex flex-col gap-1.5 rounded-xl bg-[#202B45] p-3.5 border border-white/5">
+          <span className="text-xs text-slate-400 font-medium tracking-wide">Plays</span>
+          <span className="text-sm font-semibold text-white flex items-center gap-1.5">
+            <Users className="h-4 w-4 text-primary" />
+            {playCount.toLocaleString()}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1.5 rounded-xl bg-[#202B45] p-3.5 border border-white/5 overflow-hidden">
+          <span className="text-xs text-slate-400 font-medium tracking-wide">Top Player</span>
+          <span className="text-sm font-semibold text-white flex items-center gap-1.5 truncate">
+            {topPlayer ? (
+              <>
+                <Crown className="h-4 w-4 text-yellow-500 shrink-0" />
+                <span className="truncate">{topPlayer}</span>
+              </>
+            ) : (
+              <span className="text-slate-500">None yet</span>
+            )}
+          </span>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-3 mt-1">
+        <Button 
+          className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg font-bold h-11 transition-transform active:scale-[0.98]" 
+          asChild
+        >
           <Link to={`/free-play/${slug}`}>
-            <Play className="mr-1 h-3 w-3" /> Play
+            <Play className="mr-2 h-4 w-4" fill="currentColor" /> Free Play
           </Link>
         </Button>
         {contestSlug && (
           <Button
-            size="sm"
             variant="outline"
-            className="flex-1 border-accent text-accent hover:bg-accent/10 text-xs"
+            className="flex-1 border-white/10 bg-[#202B45] text-white hover:bg-neon-pink hover:text-white font-bold h-11 transition-all active:scale-[0.98]"
             onClick={onContestClick}
           >
-            <Trophy className="mr-1 h-3 w-3" /> Contest
+            <Trophy className="mr-2 h-4 w-4" /> Contest
           </Button>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Search, Gamepad2, Trophy, Play } from "lucide-react";
+import { Search, Gamepad2, Trophy, Play, Filter, ArrowDownUp } from "lucide-react";
 import Layout from "@/components/Layout";
 import { PageMeta } from "@/components/PageMeta";
 import GameCard from "@/components/GameCard";
@@ -40,6 +40,7 @@ function StaggeredGameCard({ game, index, playCounts, topPlayers, contestSlugMap
 const Games = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<GameFilter>("all");
+  const [sortBy, setSortBy] = useState<string>("most-played");
   const [contestDialog, setContestDialog] = useState<{ contestTitle: string; startsAt: string | null; endsAt: string | null; gameSlug: string; variant: "upcoming" | "closed" } | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -134,11 +135,38 @@ const Games = () => {
     }
   });
 
-  const filtered = games.filter((g) => {
+  let filtered = games.filter((g) => {
     const matchesSearch = g.title.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
-    if (filter === "contest") return contestGameIds.has(g.id);
+    
+    // Check if the game currently has an active/upcoming contest mapped
+    const hasActiveContest = !!contestSlugMap[g.id];
+
+    if (filter === "contest") {
+      return hasActiveContest;
+    }
+    
+    if (filter === "free") {
+      // Free to play means the game DOES NOT currently have an active contest
+      return !hasActiveContest;
+    }
+    
     return true;
+  });
+
+  filtered.sort((a, b) => {
+    if (sortBy === "most-played") {
+      const playsA = playCounts[a.id] || 0;
+      const playsB = playCounts[b.id] || 0;
+      return playsB - playsA;
+    }
+    if (sortBy === "a-z") {
+      return a.title.localeCompare(b.title);
+    }
+    if (sortBy === "newest") {
+      return new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime();
+    }
+    return 0;
   });
 
   const handleContestClick = useCallback(async (gameSlug: string, contestSlugVal: string) => {
@@ -184,11 +212,7 @@ const Games = () => {
     navigate(`/contest-play/${contestSlugVal}/${gameSlug}`);
   }, [user, contestById, navigate, queryClient]);
 
-  const filterButtons: { key: GameFilter; label: string; icon: React.ElementType }[] = [
-    { key: "all", label: "All Games", icon: Gamepad2 },
-    { key: "free", label: "Free Play", icon: Play },
-    { key: "contest", label: "Contest", icon: Trophy },
-  ];
+
 
   return (
     <Layout>
@@ -197,37 +221,52 @@ const Games = () => {
         <div className="container">
           <div ref={headerRef} className="mb-10 text-center">
             <h1 className="mb-4 font-arcade text-xl text-foreground md:text-2xl">
-              Browse <span className="text-primary text-glow-blue">Games</span>
+              Browse <span className="text-primary text-glow-blue">Free</span> Games 
             </h1>
             <p className="text-muted-foreground">Choose a game and start playing. Free play or enter a contest!</p>
           </div>
 
-          <div ref={filterRef} className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative max-w-sm flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search games..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-border bg-secondary/50 py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+          <div ref={filterRef} className="mb-8 flex flex-col md:flex-row items-center justify-between gap-4 rounded-xl border border-white/5 bg-[#172033] p-4 shadow-sm">
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2 text-sm text-slate-400 font-medium mr-1">
+                <Filter className="h-4 w-4 text-neon-pink" /> Filters
+              </div>
+              
+              <div className="relative w-full md:w-auto min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search games..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-[#0F172A] py-2 pl-9 pr-4 text-xs text-white placeholder:text-slate-500 focus:border-neon-pink focus:outline-none transition-colors"
+                />
+              </div>
+
+              <select
+                className="rounded-lg border border-white/10 bg-[#0F172A] px-3 py-2 text-xs text-white outline-none focus:border-neon-pink hover:bg-[#202B45] transition-colors"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as GameFilter)}
+              >
+                <option value="all">All Games</option>
+                <option value="free">Free Play Only</option>
+                <option value="contest">Contest Available</option>
+              </select>
             </div>
-            <div className="flex gap-1 rounded-lg border border-border bg-secondary/30 p-1">
-              {filterButtons.map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                    filter === key
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              ))}
+
+            <div className="flex w-full md:w-auto items-center gap-3 justify-start md:justify-end">
+              <div className="flex items-center gap-2 text-sm text-slate-400 font-medium">
+                <ArrowDownUp className="h-4 w-4 text-primary" /> Sort
+              </div>
+              <select
+                className="rounded-lg border border-white/10 bg-[#0F172A] px-3 py-2 text-xs text-white outline-none focus:border-neon-pink hover:bg-[#202B45] transition-colors"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="most-played">Most Played</option>
+                <option value="newest">Newest First</option>
+                <option value="a-z">A to Z</option>
+              </select>
             </div>
           </div>
 
