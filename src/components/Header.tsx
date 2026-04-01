@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,17 @@ const Header = () => {
   const navigate = useNavigate();
 
   const { user, profile, signOut } = useAuth();
+  const [isScrolled, setIsScrolled] = useState(false);
   const queryClient = useQueryClient();
+
+  // Scroll listener for sticky header transparency
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Realtime listener: auto-refresh balance when wallets row changes
   useEffect(() => {
@@ -118,7 +129,14 @@ const Header = () => {
   );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <header 
+      className={cn(
+        "sticky top-0 z-50 transition-all duration-500 border-b",
+        isScrolled 
+          ? "border-white/10 bg-background/60 backdrop-blur-lg lg:bg-background/40 lg:backdrop-blur-xl shadow-2xl shadow-black/40 py-0" 
+          : "border-transparent bg-transparent py-2"
+      )}
+    >
       <div className="container flex h-16 items-center justify-between">
         {!isDashboard && (
           <Link to="/" className="flex items-center gap-2">
