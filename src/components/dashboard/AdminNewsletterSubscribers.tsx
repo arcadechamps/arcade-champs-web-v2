@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
+import { exportToCSV } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Download, Mail, Users, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -110,18 +111,10 @@ const AdminNewsletterSubscribers = () => {
       toast.error("No subscribers to export");
       return;
     }
-    const header = "Email,Subscribed At";
-    const rows = subscribers.map(
-      (s) => `${s.email},${new Date(s.subscribed_at).toISOString()}`
-    );
-    const csv = [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `newsletter-subscribers-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportToCSV("newsletter-subscribers", subscribers, [
+      { header: "Email", accessor: (s) => s.email },
+      { header: "Subscribed At", accessor: (s) => new Date(s.subscribed_at).toISOString() }
+    ]);
     toast.success(`Exported ${subscribers.length} subscribers`);
   };
 

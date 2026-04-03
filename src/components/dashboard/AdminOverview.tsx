@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Users, Trophy, Zap, DollarSign, AlertTriangle, ArrowRight, TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown } from "lucide-react";
+import { Users, Trophy, Zap, DollarSign, AlertTriangle, ArrowRight, TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Profile, Contest, GameSession, WalletTransaction, AntiCheatLog, Wallet, ContestWinner } from "@/types/database";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
 import TablePagination, { usePagination } from "./TablePagination";
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { format, subWeeks, startOfWeek } from "date-fns";
+import { format, subDays, subWeeks, subMonths, startOfDay, startOfWeek, startOfMonth } from "date-fns";
+import { exportToCSV } from "@/lib/utils";
+import { toast } from "sonner";
 
 const TOUR_STEPS: TourStep[] = [
   { targetSelector: '[data-tour="admin-stats"]', title: "Platform at a Glance", description: "Your top-level metrics — players, contests, sessions, and more. Keep an eye on growth!", position: "bottom" },
@@ -43,38 +45,71 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
 
   const totalBalance = wallets.reduce((s, w) => s + w.balance_cents, 0);
 
-  // Generate last 6 weeks for the chart
-  const WEEKS_TO_SHOW = 6;
-  const weeklyData = Array.from({ length: WEEKS_TO_SHOW }).map((_, i) => {
-    const d = subWeeks(new Date(), WEEKS_TO_SHOW - 1 - i);
-    const weekStart = startOfWeek(d, { weekStartsOn: 1 });
-    return {
-      name: format(weekStart, "MMM d"),
-      timestamp: weekStart.getTime(),
-      Topups: 0,
-      Fees: 0,
-      Payouts: 0,
-      Net: 0
-    };
-  });
+  const [timeRange, setTimeRange] = useState<"7d" | "4w" | "6m">("4w");
 
-  succeededTx.forEach(tx => {
-    const txDate = new Date(tx.created_at);
-    const txWeekStart = startOfWeek(txDate, { weekStartsOn: 1 }).getTime();
-    
-    // Find bucket
-    const bucket = weeklyData.find(w => w.timestamp === txWeekStart);
-    if (bucket) {
-      const amount = tx.amount_cents / 100;
-      if (tx.type === "topup") bucket.Topups += amount;
-      if (tx.type === "session_fee") bucket.Fees += amount;
-      if (tx.type === "payout") bucket.Payouts += amount;
+  const getChartData = () => {
+    let buckets: { name: string; timestamp: number; Topups: number; Fees: number; Payouts: number; Net: number }[] = [];
+    const now = new Date();
+
+    if (timeRange === "7d") {
+      const DAYS_TO_SHOW = 7;
+      buckets = Array.from({ length: DAYS_TO_SHOW }).map((_, i) => {
+        const d = subDays(now, DAYS_TO_SHOW - 1 - i);
+        const dayStart = startOfDay(d);
+        return { name: format(dayStart, "MMM d"), timestamp: dayStart.getTime(), Topups: 0, Fees: 0, Payouts: 0, Net: 0 };
+      });
+    } else if (timeRange === "4w") {
+      const WEEKS_TO_SHOW = 4;
+      buckets = Array.from({ length: WEEKS_TO_SHOW }).map((_, i) => {
+        const d = subWeeks(now, WEEKS_TO_SHOW - 1 - i);
+        const weekStart = startOfWeek(d, { weekStartsOn: 1 });
+        return { name: format(weekStart, "MMM d"), timestamp: weekStart.getTime(), Topups: 0, Fees: 0, Payouts: 0, Net: 0 };
+      });
+    } else if (timeRange === "6m") {
+      const MONTHS_TO_SHOW = 6;
+      buckets = Array.from({ length: MONTHS_TO_SHOW }).map((_, i) => {
+        const d = subMonths(now, MONTHS_TO_SHOW - 1 - i);
+        const monthStart = startOfMonth(d);
+        return { name: format(monthStart, "MMM yy"), timestamp: monthStart.getTime(), Topups: 0, Fees: 0, Payouts: 0, Net: 0 };
+      });
     }
-  });
 
-  weeklyData.forEach(w => {
-    w.Net = w.Fees - w.Payouts;
-  });
+    succeededTx.forEach(tx => {
+      const txDate = new Date(tx.created_at);
+      let txBucketTime = 0;
+      if (timeRange === "7d") txBucketTime = startOfDay(txDate).getTime();
+      else if (timeRange === "4w") txBucketTime = startOfWeek(txDate, { weekStartsOn: 1 }).getTime();
+      else if (timeRange === "6m") txBucketTime = startOfMonth(txDate).getTime();
+
+      const bucket = buckets.find(w => w.timestamp === txBucketTime);
+      if (bucket) {
+        const amount = tx.amount_cents / 100;
+        if (tx.type === "topup") bucket.Topups += amount;
+        if (tx.type === "session_fee") bucket.Fees += amount;
+        if (tx.type === "payout") bucket.Payouts += amount;
+      }
+    });
+
+    buckets.forEach(w => {
+      w.Net = w.Fees - w.Payouts;
+    });
+
+    return buckets;
+  };
+
+  const chartData = getChartData();
+
+  const handleExportChartData = () => {
+    if (chartData.length === 0) return;
+    exportToCSV(`revenue-summary-${timeRange}`, chartData, [
+      { header: "Period", accessor: (d) => d.name },
+      { header: "Top-ups ($)", accessor: (d) => d.Topups.toFixed(2) },
+      { header: "Session Fees ($)", accessor: (d) => d.Fees.toFixed(2) },
+      { header: "Payouts ($)", accessor: (d) => d.Payouts.toFixed(2) },
+      { header: "Net Revenue ($)", accessor: (d) => d.Net.toFixed(2) },
+    ]);
+    toast.success(`Exported ${timeRange.toUpperCase()} chart data`);
+  };
 
   const stats = [
     { label: "Total Players", value: totalPlayers, icon: Users, color: "text-primary" },
@@ -153,9 +188,19 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
             <CardTitle className="font-arcade text-[10px] text-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-neon-green" /> Revenue Summary
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => onNavigate?.("sessions")}>
-              Ledger <ArrowRight className="ml-1 h-3 w-3" />
-            </Button>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="flex bg-secondary/50 rounded-md p-0.5 sm:p-1">
+                <button onClick={() => setTimeRange("7d")} className={`px-1.5 sm:px-2 py-1 text-[10px] rounded ${timeRange === "7d" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>7D</button>
+                <button onClick={() => setTimeRange("4w")} className={`px-1.5 sm:px-2 py-1 text-[10px] rounded ${timeRange === "4w" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>4W</button>
+                <button onClick={() => setTimeRange("6m")} className={`px-1.5 sm:px-2 py-1 text-[10px] rounded ${timeRange === "6m" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>6M</button>
+              </div>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Export CSV" onClick={handleExportChartData}>
+                <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] sm:text-xs text-primary hover:text-black hidden sm:flex" onClick={() => onNavigate?.("sessions")}>
+                Ledger <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-4 gap-2">
@@ -181,7 +226,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
 
             <div className="h-[220px] w-full pt-2">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
                   <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
