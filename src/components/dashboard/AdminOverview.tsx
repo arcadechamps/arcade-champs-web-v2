@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Users, Trophy, Zap, DollarSign, AlertTriangle, ArrowRight, TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Profile, Contest, GameSession, WalletTransaction, AntiCheatLog, Wallet, ContestWinner } from "@/types/database";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
+import TablePagination, { usePagination } from "./TablePagination";
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { format, subWeeks, startOfWeek } from "date-fns";
 
 const TOUR_STEPS: TourStep[] = [
   { targetSelector: '[data-tour="admin-stats"]', title: "Platform at a Glance", description: "Your top-level metrics — players, contests, sessions, and more. Keep an eye on growth!", position: "bottom" },
@@ -39,6 +43,39 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
 
   const totalBalance = wallets.reduce((s, w) => s + w.balance_cents, 0);
 
+  // Generate last 6 weeks for the chart
+  const WEEKS_TO_SHOW = 6;
+  const weeklyData = Array.from({ length: WEEKS_TO_SHOW }).map((_, i) => {
+    const d = subWeeks(new Date(), WEEKS_TO_SHOW - 1 - i);
+    const weekStart = startOfWeek(d, { weekStartsOn: 1 });
+    return {
+      name: format(weekStart, "MMM d"),
+      timestamp: weekStart.getTime(),
+      Topups: 0,
+      Fees: 0,
+      Payouts: 0,
+      Net: 0
+    };
+  });
+
+  succeededTx.forEach(tx => {
+    const txDate = new Date(tx.created_at);
+    const txWeekStart = startOfWeek(txDate, { weekStartsOn: 1 }).getTime();
+    
+    // Find bucket
+    const bucket = weeklyData.find(w => w.timestamp === txWeekStart);
+    if (bucket) {
+      const amount = tx.amount_cents / 100;
+      if (tx.type === "topup") bucket.Topups += amount;
+      if (tx.type === "session_fee") bucket.Fees += amount;
+      if (tx.type === "payout") bucket.Payouts += amount;
+    }
+  });
+
+  weeklyData.forEach(w => {
+    w.Net = w.Fees - w.Payouts;
+  });
+
   const stats = [
     { label: "Total Players", value: totalPlayers, icon: Users, color: "text-primary" },
     { label: "Total Contests", value: contests.length, icon: Trophy, color: "text-neon-pink" },
@@ -59,14 +96,14 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   type ActivityItem = { id: string; type: string; label: string; detail: string; time: string; color: string };
   const recentActivity: ActivityItem[] = [];
 
-  for (const p of [...profiles].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5)) {
+  for (const p of profiles) {
     recentActivity.push({
       id: `p-${p.user_id}`, type: "signup", label: "New Player",
       detail: p.display_name ?? p.username ?? "Unknown", time: p.created_at, color: "text-primary",
     });
   }
 
-  for (const tx of transactions.slice(0, 5)) {
+  for (const tx of transactions) {
     recentActivity.push({
       id: `tx-${tx.id}`, type: "transaction", label: tx.type.replace("_", " "),
       detail: `$${(tx.amount_cents / 100).toFixed(2)}`, time: tx.created_at,
@@ -76,7 +113,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
 
   const getName = (uid: string) => profiles.find(p => p.user_id === uid)?.display_name ?? uid.slice(0, 8);
   const getContestTitle = (cid: string) => contests.find(c => c.id === cid)?.title ?? "Unknown";
-  for (const w of [...winners].sort((a, b) => new Date(b.declared_at).getTime() - new Date(a.declared_at).getTime()).slice(0, 5)) {
+  for (const w of winners) {
     recentActivity.push({
       id: `w-${w.contest_id}`, type: "winner", label: "Winner Declared",
       detail: `${getName(w.user_id)} won ${getContestTitle(w.contest_id)} — $${(w.payout_cents / 100).toFixed(2)}`,
@@ -85,7 +122,10 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   }
 
   recentActivity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-  const topActivity = recentActivity.slice(0, 8);
+  
+  const [activityPage, setActivityPage] = useState(1);
+  const { totalPages, totalItems, pageSize, getPage } = usePagination(recentActivity, 8);
+  const paginatedActivity = getPage(activityPage);
 
   return (
     <div className="space-y-6">
@@ -118,39 +158,46 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-secondary/30 p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <ArrowDownCircle className="h-3 w-3 text-neon-green" />
-                  <span className="text-xs text-muted-foreground">Top-ups</span>
-                </div>
-                <p className="font-arcade text-xs text-neon-green">${(totalTopups / 100).toFixed(2)}</p>
+            <div className="grid grid-cols-4 gap-2">
+              <div className="rounded-lg bg-secondary/30 p-2 lg:p-3">
+                <span className="text-[10px] text-muted-foreground block mb-1">Top-ups</span>
+                <p className="font-arcade text-xs text-neon-green truncate">${(totalTopups / 100).toFixed(2)}</p>
               </div>
-              <div className="rounded-lg bg-secondary/30 p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <DollarSign className="h-3 w-3 text-accent" />
-                  <span className="text-xs text-muted-foreground">Session Fees</span>
-                </div>
-                <p className="font-arcade text-xs text-accent">${(totalFees / 100).toFixed(2)}</p>
+              <div className="rounded-lg bg-secondary/30 p-2 lg:p-3">
+                <span className="text-[10px] text-muted-foreground block mb-1">Fees</span>
+                <p className="font-arcade text-xs text-accent truncate">${(totalFees / 100).toFixed(2)}</p>
               </div>
-              <div className="rounded-lg bg-secondary/30 p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <ArrowUpCircle className="h-3 w-3 text-primary" />
-                  <span className="text-xs text-muted-foreground">Payouts</span>
-                </div>
-                <p className="font-arcade text-xs text-primary">${(totalPayouts / 100).toFixed(2)}</p>
+              <div className="rounded-lg bg-secondary/30 p-2 lg:p-3">
+                <span className="text-[10px] text-muted-foreground block mb-1">Payouts</span>
+                <p className="font-arcade text-xs text-primary truncate">${(totalPayouts / 100).toFixed(2)}</p>
               </div>
-              <div className="rounded-lg bg-secondary/30 p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="h-3 w-3 text-neon-green" />
-                  <span className="text-xs text-muted-foreground">Net Revenue</span>
-                </div>
-                <p className={`font-arcade text-xs ${netRevenue >= 0 ? "text-neon-green" : "text-destructive"}`}>
+              <div className="rounded-lg bg-secondary/30 p-2 lg:p-3">
+                <span className="text-[10px] text-muted-foreground block mb-1">Net Rev</span>
+                <p className={`font-arcade text-xs truncate ${netRevenue >= 0 ? "text-neon-green" : "text-destructive"}`}>
                   ${(netRevenue / 100).toFixed(2)}
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-between text-xs border-t border-border/30 pt-3">
+
+            <div className="h-[220px] w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontSize: "12px", color: "hsl(var(--foreground))" }}
+                    itemStyle={{ fontSize: "12px" }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "10px" }} />
+                  <Bar dataKey="Topups" stackId="a" fill="hsl(var(--neon-green))" opacity={0.6} radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="Fees" stackId="a" fill="hsl(var(--accent))" opacity={0.6} radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="Net" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: "hsl(var(--card))" }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="flex items-center justify-between text-xs border-t border-border/30 pt-3 mt-4">
               <span className="text-muted-foreground">Platform Balance (all wallets)</span>
               <span className="text-foreground font-medium">${(totalBalance / 100).toFixed(2)}</span>
             </div>
@@ -202,21 +249,32 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
         <CardHeader className="pb-2">
           <CardTitle className="font-arcade text-[10px] text-foreground">Recent Activity</CardTitle>
         </CardHeader>
-        <CardContent>
-          {topActivity.length > 0 ? (
-            <div className="space-y-2">
-              {topActivity.map(item => (
-                <div key={item.id} className="flex items-center justify-between rounded-lg bg-secondary/30 px-4 py-3">
-                  <div>
-                    <p className={`text-sm font-medium capitalize ${item.color}`}>{item.label}</p>
-                    <p className="text-xs text-muted-foreground">{item.detail}</p>
+        <CardContent className="p-0">
+          <div className="p-6 pt-0">
+            {paginatedActivity.length > 0 ? (
+              <div className="space-y-2">
+                {paginatedActivity.map(item => (
+                  <div key={item.id} className="flex items-center justify-between rounded-lg bg-secondary/30 px-4 py-3">
+                    <div>
+                      <p className={`text-sm font-medium capitalize ${item.color}`}>{item.label}</p>
+                      <p className="text-xs text-muted-foreground">{item.detail}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{timeAgo(item.time)}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{timeAgo(item.time)}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="py-4 text-center text-sm text-muted-foreground">No recent activity.</p>
+                ))}
+              </div>
+            ) : (
+              <p className="py-4 text-center text-sm text-muted-foreground">No recent activity.</p>
+            )}
+          </div>
+          {totalPages > 1 && (
+            <TablePagination
+              currentPage={activityPage}
+              totalPages={totalPages}
+              onPageChange={setActivityPage}
+              totalItems={totalItems}
+              pageSize={pageSize}
+            />
           )}
         </CardContent>
       </Card>
