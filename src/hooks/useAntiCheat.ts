@@ -328,7 +328,7 @@ export function useAntiCheat() {
 }
 
 // ── Verdict → DB mapping ─────────────────────────────────────────────
-function mapVerdictToDb(v: WasmVerdict): AntiCheatVerdict {
+export function mapVerdictToDb(v: WasmVerdict): AntiCheatVerdict {
   let status: "clean" | "suspected" | "confirmed";
   if (v.accepted) {
     status = "clean";

@@ -10,9 +10,7 @@ interface TablePaginationProps {
 }
 
 const TablePagination = ({ currentPage, totalPages, onPageChange, totalItems, pageSize }: TablePaginationProps) => {
-  if (totalPages <= 1) return null;
-
-  const start = (currentPage - 1) * pageSize + 1;
+  const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const end = Math.min(currentPage * pageSize, totalItems);
 
   return (

@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Users, DollarSign, CheckCircle, XCircle, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Users, DollarSign, CheckCircle, XCircle, Clock, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,19 @@ interface AdminPlayerListProps {
   onRefetch?: () => void;
 }
 
+const STORAGE_BASE = "https://vppcnlzbpovswfjbdmpm.supabase.co/storage/v1/object/public";
+
+const getAvatarUrl = (url: string | null | undefined): string | undefined => {
+  if (!url) return undefined;
+  if (url.startsWith("http")) return url;
+  return `${STORAGE_BASE}/avatars/${url}`;
+};
+
+const getInitials = (name: string | null): string => {
+  if (!name) return "?";
+  return name.slice(0, 2).toUpperCase();
+};
+
 const ADMIN_PLAYER_TOUR: TourStep[] = [
   { targetSelector: '[data-tour="ap-withdrawals"]', title: "Pending Withdrawals", description: "Players request payouts here. Review, approve, or reject them. Check their payout method before approving!", position: "bottom" },
   { targetSelector: '[data-tour="ap-search"]', title: "Search Players", description: "Quickly find any player by display name or username. The table filters in real time as you type.", position: "bottom" },
@@ -37,6 +52,11 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [playerPage, setPlayerPage] = useState(1);
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [sortKey, setSortKey] = useState<"player" | "username" | "balance" | "joined" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const PRESET_AMOUNTS = [5, 10, 25, 50, 100];
 
   // Withdrawal request action confirmation
   const [withdrawalAction, setWithdrawalAction] = useState<{ tx: WalletTransaction; action: "approve" | "reject" } | null>(null);
@@ -50,6 +70,44 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
      (p.username ?? "").toLowerCase().includes(search.toLowerCase()))
   );
 
+  const getBalanceCents = (userId: string) => {
+    const w = wallets.find(w => w.user_id === userId);
+    return w?.balance_cents ?? 0;
+  };
+
+  const handleSort = (key: typeof sortKey) => {
+    if (sortKey === key) {
+      if (sortDir === "asc") setSortDir("desc");
+      else { setSortKey(null); setSortDir("asc"); }
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPlayerPage(1);
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (!sortKey) return 0;
+    const dir = sortDir === "asc" ? 1 : -1;
+    switch (sortKey) {
+      case "player":
+        return dir * (a.display_name ?? "").localeCompare(b.display_name ?? "");
+      case "username":
+        return dir * (a.username ?? "").localeCompare(b.username ?? "");
+      case "balance":
+        return dir * (getBalanceCents(a.user_id) - getBalanceCents(b.user_id));
+      case "joined":
+        return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      default:
+        return 0;
+    }
+  });
+
+  const SortIcon = ({ column }: { column: typeof sortKey }) => {
+    if (sortKey !== column) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3 text-primary" /> : <ArrowDown className="h-3 w-3 text-primary" />;
+  };
+
   const getBalance = (userId: string) => {
     const w = wallets.find(w => w.user_id === userId);
     return w ? (w.balance_cents / 100).toFixed(2) : "0.00";
@@ -59,6 +117,8 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
     const p = profiles.find(p => p.user_id === userId);
     return p?.display_name ?? p?.username ?? userId.slice(0, 8);
   };
+
+  const getPlayerProfile = (userId: string) => profiles.find(p => p.user_id === userId);
 
   const getPayoutInfo = (userId: string) => {
     const p = profiles.find(p => p.user_id === userId);
@@ -74,9 +134,14 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const amount = parseInt(fd.get("amount") as string) || 0;
+    const dollars = parseFloat(fd.get("amount") as string) || 0;
+    if (dollars > 10000) {
+      toast.error("Amount cannot exceed $10,000 per adjustment.");
+      return;
+    }
+    const amountCents = Math.round(dollars * 100);
     const type = fd.get("type") as string;
-    setPendingFormData({ amount, type });
+    setPendingFormData({ amount: amountCents, type });
     setConfirmOpen(true);
   };
 
@@ -150,7 +215,17 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
                   className="flex items-center justify-between rounded-lg bg-secondary/30 px-4 py-3 border border-border/30"
                 >
                   <div className="flex items-center gap-3">
-                    <Users className="h-4 w-4 text-primary" />
+                    {(() => {
+                      const player = getPlayerProfile(tx.user_id);
+                      return (
+                        <Avatar className="h-8 w-8 border border-border/50 shrink-0">
+                          <AvatarImage src={getAvatarUrl(player?.avatar_url)} alt={getPlayerName(tx.user_id)} />
+                          <AvatarFallback className="bg-secondary text-[10px] font-bold text-muted-foreground">
+                            {getInitials(player?.display_name ?? player?.username ?? null)}
+                          </AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                     <div>
                       <p className="text-sm font-medium text-foreground">{getPlayerName(tx.user_id)}</p>
                       <p className="text-xs text-muted-foreground">
@@ -208,17 +283,33 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
       />
 
       {(() => {
-        const { totalPages, totalItems, pageSize, getPage } = usePagination(filtered, 15);
+        const { totalPages, totalItems, pageSize, getPage } = usePagination(sorted, 5);
         const pageRows = getPage(playerPage);
         return (
           <div className="rounded-lg border border-border/50 bg-card overflow-hidden" data-tour="ap-table">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/50 text-xs text-muted-foreground">
-                  <th className="px-4 py-3 text-left font-medium">Player</th>
-                  <th className="px-4 py-3 text-left font-medium">Username</th>
-                  <th className="px-4 py-3 text-right font-medium">Balance</th>
-                  <th className="px-4 py-3 text-right font-medium">Joined</th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    <button type="button" onClick={() => handleSort("player")} className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
+                      Player <SortIcon column="player" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    <button type="button" onClick={() => handleSort("username")} className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
+                      Username <SortIcon column="username" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right font-medium">
+                    <button type="button" onClick={() => handleSort("balance")} className="inline-flex items-center gap-1.5 ml-auto hover:text-foreground transition-colors">
+                      Balance <SortIcon column="balance" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right font-medium">
+                    <button type="button" onClick={() => handleSort("joined")} className="inline-flex items-center gap-1.5 ml-auto hover:text-foreground transition-colors">
+                      Joined <SortIcon column="joined" />
+                    </button>
+                  </th>
                   <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
@@ -226,8 +317,13 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
                 {pageRows.map(p => (
                   <tr key={p.user_id} className="border-b border-border/30 last:border-0 hover:bg-secondary/30 transition-colors">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-primary" />
+                      <div className="flex items-center gap-2.5">
+                        <Avatar className="h-8 w-8 border border-border/50 shrink-0">
+                          <AvatarImage src={getAvatarUrl(p.avatar_url)} alt={p.display_name ?? "Player"} />
+                          <AvatarFallback className="bg-secondary text-[10px] font-bold text-muted-foreground">
+                            {getInitials(p.display_name ?? p.username)}
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="text-sm text-foreground">{p.display_name ?? "—"}</span>
                       </div>
                     </td>
@@ -269,7 +365,7 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
       })()}
 
       {/* Adjust Wallet Dialog */}
-      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+      <Dialog open={adjustOpen} onOpenChange={(open) => { setAdjustOpen(open); if (!open) setAdjustAmount(""); }}>
         <DialogContent className="border-border/50 bg-card">
           <DialogHeader>
             <DialogTitle className="font-arcade text-xs text-foreground">Adjust Wallet</DialogTitle>
@@ -291,8 +387,40 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-muted-foreground">Amount (cents)</Label>
-              <Input name="amount" type="number" min="1" required className="border-border bg-secondary/50 text-foreground" />
+              <Label className="text-muted-foreground">Amount (USD)</Label>
+              <div className="flex flex-wrap gap-2">
+                {PRESET_AMOUNTS.map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setAdjustAmount(String(amt))}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                      parseFloat(adjustAmount) === amt
+                        ? "border-primary bg-primary/20 text-primary"
+                        : "border-border/50 bg-secondary/30 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    )}
+                  >
+                    ${amt}
+                  </button>
+                ))}
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">$</span>
+                <Input
+                  name="amount"
+                  type="number"
+                  min="0.01"
+                  max="10000"
+                  step="0.01"
+                  placeholder="Custom amount"
+                  required
+                  value={adjustAmount}
+                  onChange={(e) => setAdjustAmount(e.target.value)}
+                  className="border-border bg-secondary/50 text-foreground pl-7"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Max $10,000 per adjustment</p>
             </div>
             <Button type="submit" disabled={submitting} className="w-full bg-accent text-accent-foreground hover:bg-accent/80 neon-border-pink">
               {submitting ? "Processing..." : "Confirm Adjustment"}
@@ -310,7 +438,7 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
               {pendingFormData && (
                 <>
                   You are about to <span className="font-semibold text-foreground">{pendingFormData.type === "deduct" ? "deduct" : "add"}</span>{" "}
-                  <span className="font-semibold text-foreground">{pendingFormData.amount}¢</span> {pendingFormData.type === "deduct" ? "from" : "to"}{" "}
+                  <span className="font-semibold text-foreground">${(pendingFormData.amount / 100).toFixed(2)}</span> {pendingFormData.type === "deduct" ? "from" : "to"}{" "}
                   <span className="font-semibold text-foreground">{selectedPlayer?.display_name ?? selectedPlayer?.username ?? "this player"}</span>'s wallet.
                   This action cannot be undone.
                 </>

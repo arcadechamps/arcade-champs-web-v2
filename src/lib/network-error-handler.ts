@@ -70,6 +70,16 @@ export function handleNetworkError(
     return "Network offline";
   }
 
+  // Fetch TypeError (CORS, DNS, network failure)
+  if (error instanceof TypeError && error.message === "Failed to fetch") {
+    toast.error(`${prefix}Connection failed`, {
+      description: "Could not reach the server. Please check your connection.",
+      id: "fetch-failed",
+      ...retry,
+    });
+    return "Connection failed";
+  }
+
   // Supabase PostgREST / GoTrue error shape
   if (error && typeof error === "object" && "message" in error) {
     const err = error as { message: string; code?: string; status?: number; details?: string };
@@ -119,16 +129,6 @@ export function handleNetworkError(
       ...retry,
     });
     return msg;
-  }
-
-  // Fetch TypeError (CORS, DNS, network failure)
-  if (error instanceof TypeError && error.message === "Failed to fetch") {
-    toast.error(`${prefix}Connection failed`, {
-      description: "Could not reach the server. Please check your connection.",
-      id: "fetch-failed",
-      ...retry,
-    });
-    return "Connection failed";
   }
 
   // Fallback
