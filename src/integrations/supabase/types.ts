@@ -159,6 +159,8 @@ export type Database = {
           contest_id: string
           declared_at: string
           declared_by: string | null
+          fulfillment_status: string | null
+          fulfillment_notes: string | null
           paid: boolean
           payout_cents: number
           user_id: string
@@ -168,6 +170,8 @@ export type Database = {
           contest_id: string
           declared_at?: string
           declared_by?: string | null
+          fulfillment_status?: string | null
+          fulfillment_notes?: string | null
           paid?: boolean
           payout_cents?: number
           user_id: string
@@ -177,6 +181,8 @@ export type Database = {
           contest_id?: string
           declared_at?: string
           declared_by?: string | null
+          fulfillment_status?: string | null
+          fulfillment_notes?: string | null
           paid?: boolean
           payout_cents?: number
           user_id?: string
@@ -214,6 +220,7 @@ export type Database = {
           ends_at: string | null
           id: string
           prize_cents: number
+          prize_description: string | null
           prize_image_path: string | null
           session_duration_seconds: number
           session_fee_cents: number
@@ -229,6 +236,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           prize_cents?: number
+          prize_description?: string | null
           prize_image_path?: string | null
           session_duration_seconds?: number
           session_fee_cents?: number
@@ -244,6 +252,7 @@ export type Database = {
           ends_at?: string | null
           id?: string
           prize_cents?: number
+          prize_description?: string | null
           prize_image_path?: string | null
           session_duration_seconds?: number
           session_fee_cents?: number
@@ -406,6 +415,7 @@ export type Database = {
           is_admin: boolean
           payout_handle: string | null
           payout_method: string | null
+          shipping_address: string | null
           user_id: string
           username: string | null
         }
@@ -416,6 +426,7 @@ export type Database = {
           is_admin?: boolean
           payout_handle?: string | null
           payout_method?: string | null
+          shipping_address?: string | null
           user_id: string
           username?: string | null
         }
@@ -426,6 +437,7 @@ export type Database = {
           is_admin?: boolean
           payout_handle?: string | null
           payout_method?: string | null
+          shipping_address?: string | null
           user_id?: string
           username?: string | null
         }

@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Camera, Loader2, UserCog, Wallet } from "lucide-react";
+import { Camera, Loader2, UserCog, Wallet, MapPin } from "lucide-react";
 import ChangePasswordCard from "./ChangePasswordCard";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,7 @@ import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
 const TOUR_STEPS: TourStep[] = [
   { targetSelector: '[data-tour="profile-card"]', title: "Your Public Profile", description: "Set your display name and username — this is how other players see you on leaderboards and contests!", position: "bottom" },
   { targetSelector: '[data-tour="payout-card"]', title: "Payout Method", description: "Add your PayPal, Venmo, or CashApp so admins can send your winnings when you cash out!", position: "top" },
+  { targetSelector: '[data-tour="shipping-card"]', title: "Shipping Address", description: "Save your address so we can ship out physical prizes or merchandise to you smoothly.", position: "top" },
   { targetSelector: '[data-tour="password-card"]', title: "Secure Your Account", description: "Keep your account safe by setting a strong password. You can change it anytime right here!", position: "top" },
 ];
 
@@ -49,6 +50,12 @@ const payoutSchema = z.object({
 
 type PayoutFormValues = z.infer<typeof payoutSchema>;
 
+const shippingSchema = z.object({
+  shipping_address: z.string().trim().max(300, "Address is too long (max 300 characters)").optional().or(z.literal("")),
+});
+
+type ShippingFormValues = z.infer<typeof shippingSchema>;
+
 const PAYOUT_LABELS: Record<string, string> = {
   paypal: "PayPal Email",
   venmo: "Venmo Username",
@@ -66,6 +73,7 @@ const ProfileSettings = () => {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingPayout, setSavingPayout] = useState(false);
+  const [savingShipping, setSavingShipping] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,6 +90,13 @@ const ProfileSettings = () => {
     defaultValues: {
       payout_method: (profile as any)?.payout_method ?? "",
       payout_handle: (profile as any)?.payout_handle ?? "",
+    },
+  });
+
+  const shippingForm = useForm<ShippingFormValues>({
+    resolver: zodResolver(shippingSchema),
+    defaultValues: {
+      shipping_address: profile?.shipping_address ?? "",
     },
   });
 
@@ -195,6 +210,28 @@ const ProfileSettings = () => {
       handleNetworkError(err, "Profile");
     } finally {
       setSavingPayout(false);
+    }
+  };
+
+  const onShippingSubmit = async (values: ShippingFormValues) => {
+    if (!user) return;
+    setSavingShipping(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          shipping_address: values.shipping_address || null,
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      await refreshProfile();
+      toast.success("Shipping address saved!");
+    } catch (err: any) {
+      handleNetworkError(err, "Profile");
+    } finally {
+      setSavingShipping(false);
     }
   };
 
@@ -346,6 +383,49 @@ const ProfileSettings = () => {
               <Button type="submit" disabled={savingPayout} className="w-full sm:w-auto">
                 {savingPayout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Payout Method
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      {/* Shipping Address Card */}
+      <Card className="border-border/50 bg-card/80 backdrop-blur" data-tour="shipping-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-arcade text-sm text-neon-pink">
+            <MapPin className="h-5 w-5" />
+            Shipping Address
+          </CardTitle>
+          <CardDescription>
+            Provide your address so we can easily fulfill any physical merchandise or prizes you win.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...shippingForm}>
+            <form onSubmit={shippingForm.handleSubmit(onShippingSubmit)} className="space-y-4">
+              <FormField
+                control={shippingForm.control}
+                name="shipping_address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Address</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g. 123 Main St, Springfield, IL 62701"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      This will be used strictly for shipping rewards and prizes to you.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={savingShipping} className="w-full sm:w-auto bg-neon-pink hover:bg-neon-pink/80 text-white">
+                {savingShipping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Address
               </Button>
             </form>
           </Form>
