@@ -11,6 +11,7 @@ interface Profile {
   created_at: string;
   payout_method: string | null;
   payout_handle: string | null;
+  shipping_address?: string | null;
 }
 
 interface AuthContextValue {
@@ -38,7 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const [{ data: profileData }, { data: adminData }] = await Promise.all([
         supabase
           .from("profiles")
-          .select("user_id, username, display_name, avatar_url, created_at, payout_method, payout_handle")
+          .select("user_id, username, display_name, avatar_url, created_at, payout_method, payout_handle, shipping_address")
           .eq("user_id", userId)
           .single(),
         supabase.rpc("is_admin"),
@@ -53,6 +54,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           created_at: profileData.created_at,
           payout_method: (profileData as any).payout_method ?? null,
           payout_handle: (profileData as any).payout_handle ?? null,
+          shipping_address: (profileData as any).shipping_address ?? null,
         });
       }
     } catch (err) {

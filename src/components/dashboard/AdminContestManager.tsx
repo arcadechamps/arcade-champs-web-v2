@@ -78,6 +78,8 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [declareOpen, setDeclareOpen] = useState(false);
+  const [createPrizeType, setCreatePrizeType] = useState<"physical" | "gift_card" | "cash">("physical");
+  const [editPrizeType, setEditPrizeType] = useState<"physical" | "gift_card" | "cash">("physical");
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [expandedContest, setExpandedContest] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -122,15 +124,21 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
   const [inputViewerPlayer, setInputViewerPlayer] = useState<string>("");
   const [mediaViewerSession, setMediaViewerSession] = useState<GameSession | null>(null);
 
-  // Winner emails & paid toggle
+  // Winner emails & fulfillment toggle
   const [winnerEmails, setWinnerEmails] = useState<Record<string, string>>({});
-  const [paidMap, setPaidMap] = useState<Record<string, boolean>>({});
+  const [fulfillmentMap, setFulfillmentMap] = useState<Record<string, string>>({});
+  const [notesMap, setNotesMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // Initialize paid map from winners
-    const map: Record<string, boolean> = {};
-    winners.forEach(w => { map[w.contest_id] = (w as any).paid ?? false; });
-    setPaidMap(map);
+    // Initialize fulfillment map from winners
+    const fMap: Record<string, string> = {};
+    const nMap: Record<string, string> = {};
+    winners.forEach(w => { 
+      fMap[w.contest_id] = w.fulfillment_status ?? 'pending';
+      nMap[w.contest_id] = w.fulfillment_notes ?? '';
+    });
+    setFulfillmentMap(fMap);
+    setNotesMap(nMap);
 
     // Fetch winner emails
     const userIds = [...new Set(winners.map(w => w.user_id))];
@@ -143,12 +151,15 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
     }
   }, [winners]);
 
-  const handleTogglePaid = async (contestId: string, userId: string, newPaid: boolean) => {
-    setPaidMap(prev => ({ ...prev, [contestId]: newPaid }));
-    const { error } = await supabase.from("contest_winners").update({ paid: newPaid }).eq("contest_id", contestId).eq("user_id", userId);
+  const handleUpdateFulfillment = async (contestId: string, userId: string, status: string, notes: string) => {
+    setFulfillmentMap(prev => ({ ...prev, [contestId]: status }));
+    setNotesMap(prev => ({ ...prev, [contestId]: notes }));
+    const { error } = await supabase.from("contest_winners").update({ fulfillment_status: status as any, fulfillment_notes: notes }).eq("contest_id", contestId).eq("user_id", userId);
     if (error) {
-      toast.error("Failed to update paid status");
-      setPaidMap(prev => ({ ...prev, [contestId]: !newPaid }));
+      toast.error("Failed to update fulfillment status");
+      onRefetch?.();
+    } else {
+      toast.success("Fulfillment updated");
     }
   };
 
@@ -237,7 +248,8 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
       description: (fd.get("description") as string) || null,
       session_fee_cents: parseInt(fd.get("fee") as string) || 100,
       session_duration_seconds: (parseInt(fd.get("duration") as string) || 10) * 60,
-      prize_cents: Math.round(parseFloat(fd.get("prize") as string || "0") * 100),
+      prize_description: createPrizeType === "cash" ? null : (fd.get("prize_description") as string) || null,
+      prize_cents: createPrizeType === "physical" ? 0 : Math.round(parseFloat(fd.get("prize") as string || "0") * 100),
       starts_at: isoStart,
       ends_at: isoEnd,
       created_by: user.id,
@@ -303,7 +315,8 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
       status,
       session_fee_cents: parseInt(fd.get("fee") as string) || 100,
       session_duration_seconds: (parseInt(fd.get("duration") as string) || 10) * 60,
-      prize_cents: Math.round(parseFloat(fd.get("prize") as string || "0") * 100),
+      prize_description: editPrizeType === "cash" ? null : (fd.get("prize_description") as string) || null,
+      prize_cents: editPrizeType === "physical" ? 0 : Math.round(parseFloat(fd.get("prize") as string || "0") * 100),
       starts_at: isoStart,
       ends_at: isoEnd,
     }).eq("id", selectedContest.id);
@@ -343,6 +356,15 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
     setEditPrizeFile(null);
     setEditPrizeRemoved(false);
     setEditPrizePreview(contest.prize_image_path ? `${STORAGE_BASE}/game-thumbnails/${contest.prize_image_path}` : null);
+    
+    if (contest.prize_description && contest.prize_cents > 0) {
+      setEditPrizeType("gift_card");
+    } else if (contest.prize_description) {
+      setEditPrizeType("physical");
+    } else {
+      setEditPrizeType("cash");
+    }
+
     setEditOpen(true);
   };
 
@@ -359,7 +381,8 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
     const fd = new FormData(e.currentTarget);
     const winnerId = fd.get("user_id") as string;
     const winningScore = parseInt(fd.get("score") as string) || 0;
-    const payoutCents = parseInt(fd.get("payout") as string) || 0;
+    const payoutDollars = parseFloat(fd.get("payout") as string) || 0;
+    const payoutCents = Math.round(payoutDollars * 100);
 
     const { error } = await supabase.from("contest_winners").insert({
       contest_id: selectedContest.id,
@@ -373,24 +396,8 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
       return;
     }
 
-    // Credit the winner's wallet if payout > 0
-    if (payoutCents > 0) {
-      const { error: txError } = await supabase.from("wallet_transactions").insert({
-        user_id: winnerId,
-        type: "payout" as const,
-        status: "succeeded" as const,
-        amount_cents: payoutCents,
-        contest_id: selectedContest.id,
-        meta: { source: "contest_winner", declared_by: user.id },
-      });
-      if (txError) {
-        console.error("Payout transaction failed:", txError);
-        handleSupabaseError(txError, "Winner payout");
-      }
-    }
-
     setSubmitting(false);
-    toast.success("Winner declared" + (payoutCents > 0 ? ` & $${(payoutCents / 100).toFixed(2)} credited!` : "!"));
+    toast.success("Winner declared! Make sure to award their prize manually.");
     setDeclareOpen(false);
     onRefetch?.();
   };
@@ -457,10 +464,33 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Prize Amount ($)</Label>
-                <Input name="prize" type="number" min="0" step="0.01" defaultValue="0" placeholder="e.g. 500" className="border-border bg-secondary/50 text-foreground" />
-                <p className="text-[10px] text-muted-foreground">Cash prize displayed on the contest card</p>
+                <Label className="text-muted-foreground">Prize Type</Label>
+                <Select value={createPrizeType} onValueChange={(val: any) => setCreatePrizeType(val)}>
+                  <SelectTrigger className="border-border bg-secondary/50 text-foreground w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="physical">Physical Prize</SelectItem>
+                    <SelectItem value="gift_card">Gift Card</SelectItem>
+                    <SelectItem value="cash">Cash Value</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                {createPrizeType !== "cash" && (
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Prize Description</Label>
+                    <Input name="prize_description" placeholder={createPrizeType === "gift_card" ? "e.g. $50 Amazon Gift Card" : "e.g. PlayStation 5"} className="border-border bg-secondary/50 text-foreground" required />
+                  </div>
+                )}
+                {createPrizeType !== "physical" && (
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Est. Value ($)</Label>
+                    <Input name="prize" type="number" min="0" step="0.01" defaultValue="0" className="border-border bg-secondary/50 text-foreground" required />
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground -mt-2">Values set based on prize type selected.</p>
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Prize Image (optional)</Label>
                 <input ref={createFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handlePrizeFileSelect(e.target.files?.[0] ?? null, "create")} />
@@ -556,7 +586,7 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                         <div className="mt-3 space-y-1">
                           <div className="flex items-center gap-2 text-xs">
                             <Crown className="h-3 w-3 text-neon-pink" />
-                            <span className="text-neon-pink">Winner: {getName(winner.user_id)} — Score: {winner.winning_score.toLocaleString()} — Payout: ${(winner.payout_cents / 100).toFixed(2)}</span>
+                            <span className="text-neon-pink">Winner: {getName(winner.user_id)} — Score: {winner.winning_score.toLocaleString()} — Prize Value: ${(winner.payout_cents / 100).toFixed(2)}</span>
                           </div>
                           {winnerEmails[winner.user_id] && (
                             <div className="flex items-center gap-2 text-xs ml-5">
@@ -564,17 +594,27 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                               <span className="text-muted-foreground">{winnerEmails[winner.user_id]}</span>
                             </div>
                           )}
-                          <div className="flex items-center gap-2 text-xs ml-5">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <Switch
-                                checked={paidMap[contest.id] ?? false}
-                                onCheckedChange={(checked) => handleTogglePaid(contest.id, winner.user_id, checked)}
-                                className="scale-75"
+                          <div className="flex flex-col gap-2 mt-2 ml-4 p-2 rounded border border-border/30 bg-background/50">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Fulfillment Tracking</span>
+                            <div className="flex gap-2 items-center">
+                              <Select value={fulfillmentMap[contest.id] ?? 'pending'} onValueChange={(val) => handleUpdateFulfillment(contest.id, winner.user_id, val, notesMap[contest.id] ?? '')}>
+                                <SelectTrigger className="w-[120px] h-8 text-xs bg-secondary/50 border-border"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-card border-border">
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="processing">Processing</SelectItem>
+                                  <SelectItem value="shipped">Shipped</SelectItem>
+                                  <SelectItem value="emailed">Emailed</SelectItem>
+                                  <SelectItem value="delivered">Delivered</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Input 
+                                placeholder="Tracking link or Gift Card code..." 
+                                className="h-8 text-xs bg-secondary/50 border-border flex-1"
+                                value={notesMap[contest.id] ?? ''}
+                                onChange={(e) => setNotesMap(prev => ({...prev, [contest.id]: e.target.value}))}
+                                onBlur={() => handleUpdateFulfillment(contest.id, winner.user_id, fulfillmentMap[contest.id] ?? 'pending', notesMap[contest.id] ?? '')}
                               />
-                              <span className={paidMap[contest.id] ? "text-neon-green" : "text-muted-foreground"}>
-                                {paidMap[contest.id] ? <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Paid</span> : "Mark as Paid"}
-                              </span>
-                            </label>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -603,8 +643,15 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                      {effectiveStatus === "closed" && !winner && (
-                        <Button size="sm" variant="outline" className="border-neon-pink text-neon-pink hover:bg-accent/10 gap-1" onClick={() => { setSelectedContest(contest); setDeclareOpen(true); }}>
+                      {!winner && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className={`gap-1 ${effectiveStatus === "closed" ? "border-neon-pink text-neon-pink hover:bg-accent/10" : "border-muted/50 text-muted-foreground"}`} 
+                          onClick={() => { setSelectedContest(contest); setDeclareOpen(true); }}
+                          disabled={effectiveStatus !== "closed"}
+                          title={effectiveStatus !== "closed" ? "Contest must be closed to declare a winner" : "Declare Winner"}
+                        >
                           <Crown className="h-3 w-3" /> Winner
                         </Button>
                       )}
@@ -818,9 +865,33 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Prize Amount ($)</Label>
-                <Input name="prize" type="number" min="0" step="0.01" defaultValue={(selectedContest.prize_cents / 100).toFixed(2)} className="border-border bg-secondary/50 text-foreground" />
+                <Label className="text-muted-foreground">Prize Type</Label>
+                <Select value={editPrizeType} onValueChange={(val: any) => setEditPrizeType(val)}>
+                  <SelectTrigger className="border-border bg-secondary/50 text-foreground w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="physical">Physical Prize</SelectItem>
+                    <SelectItem value="gift_card">Gift Card</SelectItem>
+                    <SelectItem value="cash">Cash Value</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                {editPrizeType !== "cash" && (
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Prize Description</Label>
+                    <Input name="prize_description" defaultValue={selectedContest.prize_description ?? ""} placeholder={editPrizeType === "gift_card" ? "e.g. $50 Amazon Gift Card" : "e.g. PlayStation 5"} className="border-border bg-secondary/50 text-foreground" required />
+                  </div>
+                )}
+                {editPrizeType !== "physical" && (
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Est. Value ($)</Label>
+                    <Input name="prize" type="number" min="0" step="0.01" defaultValue={(selectedContest.prize_cents / 100).toFixed(2)} className="border-border bg-secondary/50 text-foreground" required />
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground -mt-2">Values set based on prize type selected.</p>
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Prize Image (optional)</Label>
                 <input ref={editFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handlePrizeFileSelect(e.target.files?.[0] ?? null, "edit")} />
@@ -917,8 +988,9 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                       <Input name="score" type="number" required defaultValue={topScorer?.bestScore ?? ""} className="border-border bg-secondary/50 text-foreground" />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-muted-foreground">Payout (cents)</Label>
-                      <Input name="payout" type="number" min="0" defaultValue="0" className="border-border bg-secondary/50 text-foreground" />
+                      <Label className="text-muted-foreground">Prize Monetary Value ($)</Label>
+                      <Input name="payout" type="number" min="0" step="0.01" defaultValue={topScorer ? (selectedContest?.prize_cents / 100).toFixed(2) : "0.00"} className="border-border bg-secondary/50 text-foreground" />
+                      <p className="text-[10px] text-muted-foreground">Logged for records. No automatic wallet top-up.</p>
                     </div>
                   </div>
                 </>

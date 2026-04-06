@@ -6,6 +6,7 @@ export type TxType = 'topup' | 'session_fee' | 'payout' | 'admin_adjust';
 export type TxStatus = 'pending' | 'succeeded' | 'failed';
 
 export type PayoutMethod = 'paypal' | 'venmo' | 'cashapp';
+export type FulfillmentStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'emailed';
 
 export interface Profile {
   user_id: string;
@@ -16,6 +17,7 @@ export interface Profile {
   avatar_url?: string | null;
   payout_method: PayoutMethod | null;
   payout_handle: string | null;
+  shipping_address: string | null;
 }
 
 export interface Game {
@@ -40,6 +42,7 @@ export interface Contest {
   session_fee_cents: number;
   session_duration_seconds: number;
   prize_cents: number;
+  prize_description: string | null;
   prize_image_path: string | null;
   starts_at: string | null;
   ends_at: string | null;
@@ -68,6 +71,8 @@ export interface ContestWinner {
   winning_score: number;
   payout_cents: number;
   paid: boolean;
+  fulfillment_status: FulfillmentStatus;
+  fulfillment_notes: string | null;
   declared_by: string | null;
   declared_at: string;
 }

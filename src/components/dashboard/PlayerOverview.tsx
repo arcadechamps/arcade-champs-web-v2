@@ -1,7 +1,11 @@
-import { Trophy, Gamepad2, Clock, Wallet, Flame, ArrowRight, Calendar, Crown } from "lucide-react";
+import { Trophy, Gamepad2, Clock, Wallet, Flame, ArrowRight, Calendar, Crown, Gift, MapPin, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import type { GameSession, Contest, Wallet as WalletType, WalletTransaction, Game, ContestWinner } from "@/types/database";
 import { useAuth } from "@/hooks/useAuth";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
@@ -24,13 +28,50 @@ interface PlayerOverviewProps {
 }
 
 const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games = [], winners = [], onNavigate }: PlayerOverviewProps) => {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [isSubmittingShipping, setIsSubmittingShipping] = useState(false);
+
+  useEffect(() => {
+    if (profile?.shipping_address) {
+      setShippingAddress(profile.shipping_address);
+    }
+  }, [profile?.shipping_address]);
+
   const totalGames = sessions.length;
   const bestScore = sessions.length > 0 ? Math.max(...sessions.map(s => s.score ?? 0)) : 0;
   const activeContests = contests.filter(c => c.status === "active");
   const activeContestCount = activeContests.length;
   const myWins = winners.filter(w => w.user_id === user?.id);
   const totalEarnings = myWins.reduce((sum, w) => sum + w.payout_cents, 0);
+
+  const pendingWins = myWins.filter(w => (w as any).fulfillment_status === "pending" || (w as any).fulfillment_status === "processing");
+  const needsShippingInfo = pendingWins.length > 0 && !profile?.shipping_address;
+
+  const handleUpdateShipping = async () => {
+    if (!user) return;
+    if (!shippingAddress.trim()) {
+      toast.error("Please enter a valid shipping address");
+      return;
+    }
+    
+    setIsSubmittingShipping(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ shipping_address: shippingAddress })
+        .eq("user_id", user.id);
+        
+      if (error) throw error;
+      toast.success("Shipping address saved!", { description: "We will use this address to fulfill your prizes." });
+      await refreshProfile();
+    } catch (err: any) {
+      toast.error("Failed to update shipping address", { description: err.message });
+    } finally {
+      setIsSubmittingShipping(false);
+    }
+  };
 
   const sortedSessions = [...sessions].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   let winStreak = 0;
@@ -64,6 +105,76 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
 
   return (
     <div className="space-y-6">
+      {/* Unclaimed / Pending Prizes Banner */}
+      {pendingWins.length > 0 && (
+        <Card className="border-neon-pink/50 bg-neon-pink/5 shadow-[0_0_15px_rgba(255,42,133,0.1)]">
+          <CardHeader className="pb-2">
+            <CardTitle className="font-arcade text-sm text-neon-pink flex items-center gap-2">
+              <Gift className="h-5 w-5" /> You Have Pending Prizes!
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              {pendingWins.map(w => {
+                const c = contests.find(c => c.id === w.contest_id);
+                const prizeDesc = (c as any)?.prize_description || `$${(w.payout_cents / 100).toFixed(2)}`;
+                return (
+                  <div key={w.contest_id} className="flex items-center justify-between text-sm p-3 rounded bg-background/50 border border-border/50 transition-all hover:border-neon-pink/30">
+                    <div>
+                      <p className="font-medium text-foreground">{c?.title ?? "Contest"}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <Crown className="h-3 w-3 text-neon-pink" /> Won: <span className="text-neon-pink">{prizeDesc}</span>
+                      </p>
+                    </div>
+                    <Badge variant="outline" className={`capitalize ${(w as any).fulfillment_status === 'processing' ? 'text-accent border-accent/50 bg-accent/10' : 'text-primary border-primary/50 bg-primary/10'}`}>
+                      {(w as any).fulfillment_status || 'pending'}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {needsShippingInfo ? (
+              <div className="pt-2 border-t border-neon-pink/20">
+                <p className="text-sm text-muted-foreground mb-3 font-medium">Please provide your shipping address to claim your physical prizes:</p>
+                <div className="flex items-start gap-2">
+                  <div className="relative flex-1">
+                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Full Name, Street Address, City, State ZIP" 
+                      value={shippingAddress}
+                      onChange={(e) => setShippingAddress(e.target.value)}
+                      className="pl-9 bg-background/50 focus-visible:ring-neon-pink h-9 text-xs"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleUpdateShipping} 
+                    disabled={isSubmittingShipping || !shippingAddress.trim()} 
+                    className="h-9 bg-neon-pink text-white hover:bg-neon-pink/80 w-24 shrink-0 transition-all font-arcade text-[10px]"
+                  >
+                    {isSubmittingShipping ? "Saving..." : "Submit"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="pt-2 border-t border-neon-pink/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Your prizes will be shipped to: <span className="text-foreground pl-1">{profile?.shipping_address}</span>
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 text-xs border-primary text-primary hover:bg-primary/10 transition-colors"
+                  onClick={() => onNavigate?.("profile")}
+                >
+                  Edit Address
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stat Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {stats.map(({ icon: Icon, label, value, color }) => (

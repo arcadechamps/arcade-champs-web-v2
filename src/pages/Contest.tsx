@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Contest as ContestType, ContestParticipant, ContestGame, Game, ContestWinner, Profile } from "@/types/database";
-import ContestTour from "@/components/ContestTour";
+// import ContestTour from "@/components/ContestTour";
 import ContestNotStartedDialog from "@/components/ContestNotStartedDialog";
 import { withEffectiveStatus } from "@/utils/contestStatus";
 
@@ -420,8 +420,12 @@ const Contest = () => {
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-neon-pink/20 flex flex-col items-center justify-center">
-                          <Trophy className="h-12 w-12 text-primary/40 mb-2" />
+                        <div className="w-full h-full bg-[#1A233A] flex flex-col items-center justify-center relative">
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-neon-pink/10" />
+                          <div className="h-16 w-16 rounded-full bg-black/30 flex items-center justify-center mb-2 shadow-lg border border-white/5 relative z-10">
+                            <Gift className="h-8 w-8 text-primary/60" />
+                          </div>
+                          <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider relative z-10">Mystery Prize</span>
                         </div>
                       )}
                       
@@ -464,10 +468,22 @@ const Contest = () => {
                       {/* Title & Description */}
                       <div>
                         <h3 className="mb-2 text-xl font-bold text-white leading-tight capitalize">{c.title}</h3>
+                        {(c as any).prize_description ? (
+                          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-neon-pink/10 px-2.5 py-1">
+                            <Gift className="h-3.5 w-3.5 text-neon-pink" />
+                            <span className="text-xs font-bold text-neon-pink">Win: {(c as any).prize_description}</span>
+                          </div>
+                        ) : c.prize_cents > 0 ? (
+                          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-neon-pink/10 px-2.5 py-1">
+                            <Gift className="h-3.5 w-3.5 text-neon-pink" />
+                            <span className="text-xs font-bold text-neon-pink">Win: ${(c.prize_cents / 100).toLocaleString()}</span>
+                          </div>
+                        ) : null}
+                        
                         {c.description ? (
                           <p className="text-[13px] text-slate-300 line-clamp-2">{c.description}</p>
                         ) : (
-                          <p className="text-[13px] text-slate-300">You will win a digital prize</p>
+                          <p className="text-[13px] text-slate-300">Compete for the top spot on the leaderboard.</p>
                         )}
                       </div>
 
@@ -545,7 +561,7 @@ const Contest = () => {
           )}
         </div>
       </section>
-      {!loadingContests && contests.length > 0 && <ContestTour />}
+      {/* {!loadingContests && contests.length > 0 && <ContestTour /> */}
 
       {/* Ban info modal */}
       <Dialog open={!!banModal} onOpenChange={(open) => !open && setBanModal(null)}>
