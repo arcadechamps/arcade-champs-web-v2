@@ -76,10 +76,10 @@ const DashboardSidebar = ({ isAdmin, activeSection, onSelect }: DashboardSidebar
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border" data-tour="sidebar">
       <SidebarHeader className="p-3">
-        <Link to="/" className="flex items-center gap-2 overflow-hidden">
+        <Link to="/" className="logo-link flex items-center gap-2 overflow-hidden">
           <img src={logo} alt="Arcade Champs" className="h-8 w-8 shrink-0 object-contain" />
           {!collapsed && (
-            <span className="font-arcade text-[10px] text-primary text-glow-blue truncate">
+            <span className="logo-text font-arcade text-[10px] text-primary text-glow-blue truncate">
               ARCADE CHAMPS
             </span>
           )}

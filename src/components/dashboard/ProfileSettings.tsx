@@ -30,7 +30,7 @@ const profileSchema = z.object({
     .trim()
     .min(3, "Min 3 characters")
     .max(30, "Max 30 characters")
-    .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores")
+    .regex(/^[a-z0-9_]+$/, "Only lowercase letters, numbers, and underscores")
     .nullable()
     .or(z.literal("")),
 });
@@ -307,7 +307,15 @@ const ProfileSettings = () => {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="unique_username" {...field} value={field.value ?? ""} />
+                      <Input
+                        placeholder="unique_username"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+                          field.onChange(val);
+                        }}
+                      />
                     </FormControl>
                     <FormDescription>Letters, numbers, and underscores only.</FormDescription>
                     <FormMessage />

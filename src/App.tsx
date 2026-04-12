@@ -25,6 +25,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Leaderboard from "./pages/Leaderboard";
 import LiveLeaderboards from "./pages/LiveLeaderboards";
+import ContactUs from "./pages/ContactUs";
 import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient({
@@ -91,6 +92,7 @@ const App = () => {
                 <Route path="/payment-cancel" element={<ProtectedRoute><PaymentCancel /></ProtectedRoute>} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/contact" element={<ContactUs />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
