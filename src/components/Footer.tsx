@@ -11,9 +11,9 @@ const Footer = () => {
         {!isDashboard && (
           <div className="flex flex-col md:flex-row flex-wrap justify-center items-center md:items-start gap-12 md:gap-24 text-center">
             <div className="flex flex-col items-center max-w-xs">
-              <Link to="/" className="flex items-center justify-center gap-2 mb-4">
+              <Link to="/" className="logo-link flex items-center justify-center gap-2 mb-4">
                 <img src={logo} alt="Arcade Champs" className="h-9 w-9 object-contain" />
-                <span className="font-arcade text-xs text-primary">ARCADE CHAMPS</span>
+                <span className="logo-text font-arcade text-xs text-primary">ARCADE CHAMPS</span>
               </Link>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 The ultimate skill-based retro gaming platform. Compete, play, and win.

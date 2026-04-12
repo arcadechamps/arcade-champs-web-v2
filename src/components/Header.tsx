@@ -139,9 +139,9 @@ const Header = () => {
     >
       <div className="container flex h-16 items-center justify-between">
         {!isDashboard && (
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="logo-link flex items-center gap-2">
             <img src={logo} alt="Arcade Champs" className="h-10 w-10 object-contain" />
-            <span className="font-arcade text-sm text-primary text-glow-blue">ARCADE CHAMPS</span>
+            <span className="logo-text font-arcade text-sm text-primary text-glow-blue">ARCADE CHAMPS</span>
           </Link>
         )}
 

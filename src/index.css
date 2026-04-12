@@ -82,6 +82,24 @@
     box-shadow: 0 0 5px hsl(330 81% 60% / 0.5), 0 0 20px hsl(330 81% 60% / 0.2), inset 0 0 5px hsl(330 81% 60% / 0.1);
   }
 
+  /* Logo hover → pink neon glow */
+  .logo-link img {
+    transition: filter 0.3s ease;
+  }
+  .logo-link .logo-text {
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+  }
+  .logo-link:hover img {
+    filter:
+      drop-shadow(0 0 6px hsl(330 81% 60% / 0.8))
+      drop-shadow(0 0 18px hsl(330 81% 60% / 0.5))
+      drop-shadow(0 0 40px hsl(330 81% 60% / 0.25));
+  }
+  .logo-link:hover .logo-text {
+    color: hsl(330 81% 60%);
+    text-shadow: 0 0 10px hsl(330 81% 60% / 0.8), 0 0 30px hsl(330 81% 60% / 0.4), 0 0 60px hsl(330 81% 60% / 0.2);
+  }
+
   .bg-grid {
     background-image:
       linear-gradient(hsl(265 30% 20% / 0.3) 1px, transparent 1px),
