@@ -280,6 +280,13 @@ All tables have RLS enabled. General pattern:
 
 - Handles gameplay recording uploads to `gameplay-recordings` bucket
 
+### `send-contact-email`
+
+- Receives contact form submissions containing `name`, `email`, `subject`, and `message`
+- Uses the Resend API to securely send HTML-formatted emails to the admin (`admin@arcadechamps.com`) with a `reply_to` set to the submitting user
+- Performs basic validation and handles edge function CORS preflight requests securely
+- Requires `RESEND_API_KEY` as an edge function secret
+
 ### `update-contest-statuses`
 
 - Auto-transitions contests: `upcoming → active` (when `starts_at` passes), `active → closed` (when `ends_at` passes)
@@ -669,6 +676,7 @@ interface KeyMapping {
 | Supabase | Auth, DB, Storage, Edge Functions | Direct SDK client |
 | EmulatorJS | Retro game emulation | Loaded in iframe via `game-frame.html` |
 | Stripe | Wallet deposits | Checkout Sessions via edge functions |
+| Resend | Contact form email delivery | REST API via edge function (`send-contact-email`) |
 
 ---
 
@@ -689,6 +697,11 @@ See [Section 8.12](#812-network-error-handling).
 ---
 
 ## 14. Bug Fixes & Change Log
+
+### 2026-04-12: Contact Form & Resend Integration
+
+- **Contact Page**: Created a dedicated `/contact` page with a Zod-validated `react-hook-form` capturing user inquiries. Implemented dynamic loading states and success/error toasts.
+- **Resend Edge Function**: Built and linked `send-contact-email` Supabase Edge Function to securely handle email dispatch via the Resend API to the administrative inbox (`admin@arcadechamps.com`).
 
 ### 2026-03-26: Leaderboard, Contest Management & Anti-Cheat Updates
 
