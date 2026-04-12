@@ -288,12 +288,12 @@ const Index = () => {
         }}
       />
       {/* Hero */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden md:-mt-20 min-h-[80vh]">
         <div className="absolute inset-0">
           <img src={heroBg} alt="" className="h-full w-full object-cover opacity-40" />
           <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
         </div>
-        <div className="bg-grid relative">
+        <div className="bg-grid relative md:pt-20">
           <div ref={heroRef} className="container flex min-h-[70vh] flex-col items-center justify-center py-20 text-center">
             <span className="mb-4 inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary">
               🎮 Skill-Based Retro Gaming
@@ -304,7 +304,7 @@ const Index = () => {
             <p className="mb-8 max-w-xl text-lg text-muted-foreground">
               Compete in classic retro games, climb the leaderboards, and win real prizes. Fair play guaranteed.
             </p>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 justify-center">
               <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2" asChild>
                 <Link to="/games">
                   View Games <ArrowRight className="h-4 w-4" />

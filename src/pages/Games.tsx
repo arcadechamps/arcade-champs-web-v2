@@ -217,8 +217,8 @@ const Games = () => {
   return (
     <Layout>
       <PageMeta title="Browse Games" description="Browse our collection of classic retro games. Play for free or enter contests to win prizes." />
-      <section className="bg-grid py-16">
-        <div className="container">
+      <section className="bg-grid py-16 md:-mt-20">
+        <div className="container md:pt-24">
           <div ref={headerRef} className="mb-10 text-center">
             <h1 className="mb-4 font-arcade text-xl text-foreground md:text-2xl">
               Browse <span className="text-primary text-glow-blue">Free</span> Games 

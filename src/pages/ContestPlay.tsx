@@ -29,6 +29,7 @@ const formatTime = (s: number) => {
 };
 
 const ContestPlay = () => {
+  const BASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const { contestSlug, gameId } = useParams<{ contestSlug: string; gameId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -265,7 +266,7 @@ const ContestPlay = () => {
         formData.append("session_id", sessionId);
 
         const uploadRes = await fetch(
-          "https://vppcnlzbpovswfjbdmpm.supabase.co/functions/v1/upload-screenshot",
+          `${BASE_URL}/functions/v1/upload-screenshot`,
           {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
@@ -387,7 +388,7 @@ const ContestPlay = () => {
                   formData.append("recording", recordingFile);
                   formData.append("session_id", currentSessionId);
                   const res = await fetch(
-                    "https://vppcnlzbpovswfjbdmpm.supabase.co/functions/v1/upload-recording",
+                    `${BASE_URL}/functions/v1/upload-recording`,
                     {
                       method: "POST",
                       headers: { Authorization: `Bearer ${token}` },
@@ -620,7 +621,7 @@ const ContestPlay = () => {
         title={`${game.title} | ${contest.title} - Contest Mode`} 
         description={`Play ${game.title} in the ${contest.title} contest on Arcade Champs.`} 
         schema={generateContestPlaySchema()}
-        ogImage={game.thumbnail_path ? `https://vppcnlzbpovswfjbdmpm.supabase.co/storage/v1/object/public/game-thumbnails/${game.thumbnail_path}` : undefined}
+        ogImage={game.thumbnail_path ? `${BASE_URL}/storage/v1/object/public/game-thumbnails/${game.thumbnail_path}` : undefined}
         canonicalUrl={`/contest-play/${contest.slug}/${game.slug}`}
       />
       <ContestRulesModal

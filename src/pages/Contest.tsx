@@ -332,8 +332,8 @@ const Contest = () => {
         schema={contests.length > 0 ? generateContestSchema() : undefined}
         canonicalUrl="/contest"
       />
-      <section className="bg-grid py-16">
-        <div className="container">
+      <section className="bg-grid py-16 md:-mt-20">
+        <div className="container md:pt-24">
           <div ref={headerRef} className="mb-10 text-center">
             <h1 className="mb-4 font-arcade text-xl text-foreground md:text-2xl">
               Browse <span className="text-neon-pink text-glow-pink">Paid</span> Contests
