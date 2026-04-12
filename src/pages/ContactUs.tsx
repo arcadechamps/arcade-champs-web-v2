@@ -2,6 +2,7 @@ import Layout from "@/components/Layout";
 import { PageMeta } from "@/components/PageMeta";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { ContactForm } from "@/components/ContactForm";
+import { GoogleReCaptchaProvider } from "react-google-recaptcha-v3";
 
 const ContactUs = () => {
   const contentRef = useScrollReveal<HTMLDivElement>({ variant: "fade-up" });
@@ -31,7 +32,9 @@ const ContactUs = () => {
             <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-accent/20 blur-[50px] rounded-full pointer-events-none" />
             
             <div className="relative z-10">
-              <ContactForm />
+              <GoogleReCaptchaProvider reCaptchaKey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || ""}>
+                <ContactForm />
+              </GoogleReCaptchaProvider>
             </div>
           </div>
         </div>

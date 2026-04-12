@@ -21,11 +21,39 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { name, email, subject, message } = body;
+    const { name, email, subject, message, recaptchaToken } = body;
 
-    if (!name || !email || !message) {
+    if (!name || !email || !message || !recaptchaToken) {
       return new Response(
-        JSON.stringify({ error: "Missing name, email, or message" }),
+        JSON.stringify({ error: "Missing required fields or security token" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify reCAPTCHA token
+    const recaptchaSecret = Deno.env.get("RECAPTCHA_SECRET_KEY");
+    if (!recaptchaSecret) {
+      console.error("[send-contact-email] Missing RECAPTCHA_SECRET_KEY");
+      return new Response(
+        JSON.stringify({ error: "Server Configuration Error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const verificationResponse = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: `secret=${encodeURIComponent(recaptchaSecret)}&response=${encodeURIComponent(recaptchaToken)}`,
+    });
+
+    const verificationData = await verificationResponse.json();
+
+    if (!verificationData.success || verificationData.score < 0.5) {
+      console.warn("[send-contact-email] reCAPTCHA verification failed:", verificationData);
+      return new Response(
+        JSON.stringify({ error: "Security check failed. Please try again." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
