@@ -50,4 +50,6 @@ After every task, you MUST:
 
 Provide a brief technical summary of changes.
 
+7. This project local development server is Local: http://localhost:8080 and  Network: http://192.168.8.100:8080
+
 Suggest exactly 3 logical next steps to maintain project momentum.

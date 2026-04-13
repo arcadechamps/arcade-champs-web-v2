@@ -331,6 +331,13 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
     useEffect(() => {
       const handleFullscreenChange = () => {
         setIsFullscreen(!!document.fullscreenElement);
+        
+        // Refocus the iframe so the "Fullscreen" button doesn't trap keyboard focus.
+        // Otherwise, games using Spacebar (like Pinball) will unexpectedly trigger the button
+        // or appear "frozen" because inputs aren't reaching the iframe.
+        setTimeout(() => {
+          iframeRef.current?.focus();
+        }, 100);
       };
       document.addEventListener("fullscreenchange", handleFullscreenChange);
       return () =>
@@ -350,6 +357,13 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
       <div
         ref={containerRef}
         className={`relative w-full ${isFullscreen ? "bg-black flex flex-col h-full" : ""}`}
+        onClick={() => {
+          // Ensure keyboard focus returns to the game iframe if the user clicks the header
+          // or empty space around the game.
+          if (document.activeElement !== iframeRef.current) {
+            iframeRef.current?.focus();
+          }
+        }}
       >
         <div className="flex items-center justify-between border-b border-border/50 bg-secondary/30 px-4 py-2">
           <span className="text-xs text-muted-foreground">{core}</span>

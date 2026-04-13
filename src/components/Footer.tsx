@@ -53,7 +53,7 @@ const Footer = () => {
         )}
 
         <div className={`${!isDashboard ? 'mt-8 border-t border-border/50 pt-6' : ''} text-center text-xs text-muted-foreground`}>
-          © 2026 Arcade Champs. All rights reserved.
+          © {new Date().getFullYear()} Arcade Champs. All rights reserved.
         </div>
       </div>
     </footer>
