@@ -103,6 +103,17 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
     return `${days}d ago`;
   };
 
+  const timeLeft = (dateStr: string) => {
+    const diff = new Date(dateStr).getTime() - Date.now();
+    if (diff <= 0) return "Ended";
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ${mins % 60}m`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ${hrs % 24}h`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Unclaimed / Pending Prizes Banner */}
@@ -302,7 +313,7 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
                     </p>
                   </div>
                   {c.ends_at && (
-                    <span className="text-xs text-accent">{timeAgo(c.ends_at)} left</span>
+                    <span className="text-xs text-accent">{timeLeft(c.ends_at)} left</span>
                   )}
                 </div>
               ))}
