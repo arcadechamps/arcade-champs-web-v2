@@ -42,6 +42,7 @@ const adminItems: MenuItem[] = [
   { key: "players", label: "Player Directory", icon: Users },
   { key: "anticheat", label: "Anti-Cheat Control", icon: ShieldAlert },
   { key: "sessions", label: "Game Sessions", icon: History },
+  { key: "leaderboards", label: "Leaderboards", icon: Medal },
   { key: "newsletter", label: "Newsletter", icon: Mail },
 ];
 
