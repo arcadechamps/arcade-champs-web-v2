@@ -28,7 +28,7 @@ const txTypeConfig: Record<string, { icon: typeof ArrowDownCircle; label: string
   topup: { icon: ArrowDownCircle, label: "Top Up", color: "text-neon-green" },
   payout: { icon: ArrowUpCircle, label: "Payout", color: "text-neon-green" },
   session_fee: { icon: DollarSign, label: "Contest Fee", color: "text-accent" },
-  admin_adjust: { icon: Settings, label: "Arcade Champs Adjustment", color: "text-primary" },
+  admin_adjust: { icon: Settings, label: "Arcade Champs Transaction", color: "text-primary" },
 };
 
 const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {

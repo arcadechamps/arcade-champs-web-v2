@@ -215,7 +215,9 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
 
                   return (
                     <div key={tx.id} className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground capitalize">{tx.type.replace("_", " ")}</span>
+                      <span className="text-muted-foreground capitalize">
+                        {tx.type === "admin_adjust" ? "Arcade Champs Transaction" : tx.type.replace("_", " ")}
+                      </span>
                       <span className={amountColor}>
                         {isCredit ? "+" : "-"}${(Math.abs(tx.amount_cents) / 100).toFixed(2)}
                       </span>
