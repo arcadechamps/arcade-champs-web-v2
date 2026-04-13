@@ -208,12 +208,16 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
             {transactions.length > 0 ? (
               <div className="space-y-2">
                 {transactions.slice(0, 3).map(tx => {
-                  const isCredit = tx.type === "topup" || tx.type === "payout";
+                  const isCredit = tx.amount_cents > 0;
+                  const amountColor = tx.type === "admin_adjust" 
+                    ? (isCredit ? "text-primary text-glow-blue" : "text-accent") 
+                    : (isCredit ? "text-neon-green" : "text-accent");
+
                   return (
                     <div key={tx.id} className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground capitalize">{tx.type.replace("_", " ")}</span>
-                      <span className={isCredit ? "text-neon-green" : "text-accent"}>
-                        {isCredit ? "+" : "-"}${(tx.amount_cents / 100).toFixed(2)}
+                      <span className={amountColor}>
+                        {isCredit ? "+" : "-"}${(Math.abs(tx.amount_cents) / 100).toFixed(2)}
                       </span>
                     </div>
                   );

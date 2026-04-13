@@ -64,7 +64,7 @@ const ContestPlay = () => {
   const sessionIdRef = useRef<string | null>(null);
   const userRef = useRef(user);
   userRef.current = user;
-  const submitVerdictRef = useRef<(score: number) => Promise<void>>(async () => {});
+  const submitVerdictRef = useRef<(score: number) => Promise<void>>(async () => { });
 
   // Input log for anti-cheat evidence
   const inputLogRef = useRef<Array<{ t: string; k?: string; c?: string; b?: number; ts: number }>>([]);
@@ -587,8 +587,8 @@ const ContestPlay = () => {
   const config = getGameConfig(game.slug);
   const timerColor =
     timeRemaining <= 30 ? "text-destructive" :
-    timeRemaining <= 60 ? "text-yellow-500" :
-    "text-neon-green";
+      timeRemaining <= 60 ? "text-yellow-500" :
+        "text-neon-green";
   const timerPulse = timeRemaining <= 30 && !timeUp ? "animate-pulse" : "";
 
   const generateContestPlaySchema = () => {
@@ -617,9 +617,9 @@ const ContestPlay = () => {
 
   return (
     <Layout>
-      <PageMeta 
-        title={`${game.title} | ${contest.title} - Contest Mode`} 
-        description={`Play ${game.title} in the ${contest.title} contest on Arcade Champs.`} 
+      <PageMeta
+        title={`${game.title} | ${contest.title} - Contest Mode`}
+        description={`Play ${game.title} in the ${contest.title} contest on Arcade Champs.`}
         schema={generateContestPlaySchema()}
         ogImage={game.thumbnail_path ? `${BASE_URL}/storage/v1/object/public/game-thumbnails/${game.thumbnail_path}` : undefined}
         canonicalUrl={`/contest-play/${contest.slug}/${game.slug}`}

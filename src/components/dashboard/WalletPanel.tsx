@@ -260,7 +260,11 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
           {paginatedTx.map((tx) => {
             const config = txTypeConfig[tx.type] ?? { icon: DollarSign, label: tx.type, color: "text-muted-foreground" };
             const Icon = config.icon;
-            const isCredit = tx.type === "topup" || (tx.type === "payout" && tx.status === "succeeded");
+            const isCredit = tx.amount_cents > 0;
+            const amountColor = tx.type === "admin_adjust" 
+              ? (isCredit ? "text-primary text-glow-blue" : "text-accent") 
+              : (isCredit ? "text-neon-green" : "text-accent");
+              
             return (
               <div key={tx.id} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -271,8 +275,8 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-medium ${isCredit ? "text-neon-green" : "text-accent"}`}>
-                    {isCredit ? "+" : "-"}${(tx.amount_cents / 100).toFixed(2)}
+                  <p className={`text-sm font-medium ${amountColor}`}>
+                    {isCredit ? "+" : "-"}${(Math.abs(tx.amount_cents) / 100).toFixed(2)}
                   </p>
                   <p className={`text-xs ${tx.status === "succeeded" ? "text-neon-green" : tx.status === "pending" ? "text-primary" : "text-destructive"}`}>
                     {tx.status}

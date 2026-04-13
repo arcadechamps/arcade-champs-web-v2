@@ -282,7 +282,7 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
         }
         if (recorderRef.current) {
           try {
-            recorderRef.current.stopRecording(() => {});
+            recorderRef.current.stopRecording(() => { });
           } catch { /* ignore */ }
           recorderRef.current = null;
         }
@@ -331,7 +331,7 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
     useEffect(() => {
       const handleFullscreenChange = () => {
         setIsFullscreen(!!document.fullscreenElement);
-        
+
         // Refocus the iframe so the "Fullscreen" button doesn't trap keyboard focus.
         // Otherwise, games using Spacebar (like Pinball) will unexpectedly trigger the button
         // or appear "frozen" because inputs aren't reaching the iframe.
@@ -347,9 +347,9 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
     const toggleFullscreen = useCallback(() => {
       if (!containerRef.current) return;
       if (!document.fullscreenElement) {
-        containerRef.current.requestFullscreen().catch(() => {});
+        containerRef.current.requestFullscreen().catch(() => { });
       } else {
-        document.exitFullscreen().catch(() => {});
+        document.exitFullscreen().catch(() => { });
       }
     }, []);
 
