@@ -81,7 +81,7 @@ const DashboardContent = ({
         case "contests":
           return <PlayerContests contests={contests} sessions={sessions} winners={winners} profiles={profiles} />;
         case "wallet":
-          return <WalletPanel wallet={defaultWallet} transactions={transactions} onRefetch={refetch} />;
+          return <WalletPanel wallet={defaultWallet} transactions={transactions} onRefetch={refetch} onNavigate={onNavigate} />;
         case "sessions":
           return <SessionHistory sessions={sessions} games={games} contests={contests} />;
         case "leaderboards":

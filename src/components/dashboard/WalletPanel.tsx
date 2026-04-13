@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, DollarSign, Plus, Settings, ExternalLink, Wallet } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, DollarSign, Plus, Settings, ExternalLink, Wallet, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ interface WalletPanelProps {
   wallet: WalletType;
   transactions: WalletTransaction[];
   onRefetch?: () => void;
+  onNavigate?: (section: string) => void;
 }
 
 const txTypeConfig: Record<string, { icon: typeof ArrowDownCircle; label: string; color: string }> = {
@@ -31,7 +33,10 @@ const txTypeConfig: Record<string, { icon: typeof ArrowDownCircle; label: string
   admin_adjust: { icon: Settings, label: "Arcade Champs Transaction", color: "text-primary" },
 };
 
-const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
+const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPanelProps) => {
+  const { profile } = useAuth();
+  const hasPayoutMethod = !!(profile as any)?.payout_method;
+
   const [addAmount, setAddAmount] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -98,6 +103,18 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { toast.error("Not authenticated"); setWithdrawing(false); return; }
 
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("payout_method")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profileError || !profile?.payout_method) {
+      toast.error("Please add a payout method in Profile Settings first.");
+      setWithdrawing(false);
+      return;
+    }
+
     const { error } = await supabase.from("wallet_transactions").insert({
       user_id: user.id,
       type: "payout" as const,
@@ -144,6 +161,26 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
+                  {!hasPayoutMethod && (
+                    <div className="rounded-lg border border-accent/40 bg-accent/10 p-4 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Payout Method Required</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            You need to add a payout method (PayPal, Venmo, or CashApp) in your Profile Settings before you can request a withdrawal.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        className="w-full bg-accent text-accent-foreground hover:bg-accent/80 gap-2"
+                        onClick={() => { setWithdrawOpen(false); onNavigate?.("profile"); }}
+                      >
+                        <Settings className="h-4 w-4" />
+                        Go to Profile Settings
+                      </Button>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Amount (USD)</Label>
                     <Input
@@ -155,6 +192,7 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
                       value={withdrawAmount}
                       onChange={(e) => setWithdrawAmount(e.target.value)}
                       className="border-border bg-secondary/50 text-foreground"
+                      disabled={!hasPayoutMethod}
                     />
                     <p className="text-xs text-muted-foreground">
                       Available: <span className="text-neon-green">${(wallet.balance_cents / 100).toFixed(2)}</span>
@@ -168,7 +206,7 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
                         size="sm"
                         className="flex-1 border-border text-muted-foreground hover:text-foreground"
                         onClick={() => setWithdrawAmount(Math.min(amt, wallet.balance_cents / 100).toString())}
-                        disabled={wallet.balance_cents < amt * 100}
+                        disabled={!hasPayoutMethod || wallet.balance_cents < amt * 100}
                       >
                         ${amt}
                       </Button>
@@ -178,7 +216,7 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
                       size="sm"
                       className="flex-1 border-border text-muted-foreground hover:text-foreground"
                       onClick={() => setWithdrawAmount((wallet.balance_cents / 100).toFixed(2))}
-                      disabled={wallet.balance_cents < 100}
+                      disabled={!hasPayoutMethod || wallet.balance_cents < 100}
                     >
                       All
                     </Button>
@@ -186,7 +224,7 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
                   <Button
                     className="w-full bg-accent text-accent-foreground hover:bg-accent/80 gap-2"
                     onClick={handleRequestWithdrawal}
-                    disabled={withdrawing || !withdrawAmount}
+                    disabled={!hasPayoutMethod || withdrawing || !withdrawAmount}
                   >
                     <ArrowUpCircle className="h-4 w-4" />
                     {withdrawing ? "Submitting..." : "Request Withdrawal"}

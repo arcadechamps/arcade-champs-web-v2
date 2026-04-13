@@ -170,8 +170,18 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
 
   const handleWithdrawalAction = async () => {
     if (!withdrawalAction) return;
-    setSubmitting(true);
     const { tx, action } = withdrawalAction;
+
+    if (action === "approve") {
+      const payout = getPayoutInfo(tx.user_id);
+      if (!payout.method) {
+        toast.error("Cannot approve: User has no payout method saved.");
+        setWithdrawalAction(null);
+        return;
+      }
+    }
+
+    setSubmitting(true);
     const newStatus = action === "approve" ? "succeeded" : "failed";
 
     const { error } = await supabase
@@ -251,8 +261,10 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-neon-green/30 text-neon-green hover:bg-neon-green/10 gap-1 h-8"
+                        className="border-neon-green/30 text-neon-green hover:bg-neon-green/10 gap-1 h-8 disabled:opacity-40 disabled:cursor-not-allowed"
                         onClick={() => setWithdrawalAction({ tx, action: "approve" })}
+                        disabled={!getPayoutInfo(tx.user_id).method}
+                        title={!getPayoutInfo(tx.user_id).method ? "User has no payout method" : undefined}
                       >
                         <CheckCircle className="h-3 w-3" /> Approve
                       </Button>
@@ -493,7 +505,7 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
             <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleWithdrawalAction}
-              disabled={submitting}
+              disabled={submitting || (withdrawalAction?.action === "approve" && !getPayoutInfo(withdrawalAction.tx.user_id).method)}
               className={withdrawalAction?.action === "approve"
                 ? "bg-neon-green text-background hover:bg-neon-green/80"
                 : "bg-destructive text-destructive-foreground hover:bg-destructive/80"
