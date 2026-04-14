@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import RecordRTC from "recordrtc";
@@ -31,6 +31,8 @@ interface GamePlayerProps {
   onScreenshot?: (file: File) => void;
   onKeyboardEvent?: (event: KeyboardEventData) => void;
   onGamepadEvent?: (event: GamepadEventData) => void;
+  /** When provided, renders an "End my Game" button in the topbar that fires this callback. */
+  onEndSession?: () => void;
 }
 
 export interface GamePlayerHandle {
@@ -40,7 +42,7 @@ export interface GamePlayerHandle {
 }
 
 const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
-  ({ romPath, core, title, bios, onScreenshot, onKeyboardEvent, onGamepadEvent }, ref) => {
+  ({ romPath, core, title, bios, onScreenshot, onKeyboardEvent, onGamepadEvent, onEndSession }, ref) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const gameAreaRef = useRef<HTMLDivElement>(null);
@@ -367,19 +369,34 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
       >
         <div className="flex items-center justify-between border-b border-border/50 bg-secondary/30 px-4 py-2">
           <span className="text-xs text-muted-foreground">{core}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="h-3.5 w-3.5" />
-            ) : (
-              <Maximize2 className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-1">
+            {onEndSession && (
+              <Button
+                id="end-my-game-btn"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={onEndSession}
+                title="End my game session early"
+              >
+                <StopCircle className="h-3.5 w-3.5" />
+                End my Game
+              </Button>
             )}
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         </div>
         <div
           ref={gameAreaRef}
