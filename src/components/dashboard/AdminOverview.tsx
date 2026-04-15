@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Trophy, Zap, DollarSign, AlertTriangle, ArrowRight, TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown, Download } from "lucide-react";
+import { Users, Trophy, Zap, DollarSign, AlertTriangle, ArrowRight, TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown, Download, BellRing } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Profile, Contest, GameSession, WalletTransaction, AntiCheatLog, Wallet, ContestWinner } from "@/types/database";
@@ -44,6 +44,9 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   const confirmedCount = antiCheatLogs.filter(l => l.status === "confirmed").length;
 
   const totalBalance = wallets.reduce((s, w) => s + w.balance_cents, 0);
+
+  const pendingWithdrawals = transactions.filter(t => t.type === "payout" && t.status === "pending");
+  const pendingWithdrawalTotal = pendingWithdrawals.reduce((s, t) => s + Math.abs(t.amount_cents), 0);
 
   const [timeRange, setTimeRange] = useState<"7d" | "4w" | "6m">("4w");
 
@@ -164,6 +167,32 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
 
   return (
     <div className="space-y-6">
+      {/* Pending Withdrawals Notification */}
+      {pendingWithdrawals.length > 0 && (
+        <div className="rounded-lg border border-accent/40 bg-accent/10 p-4 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/20">
+              <BellRing className="h-5 w-5 text-accent animate-pulse" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {pendingWithdrawals.length} pending withdrawal{pendingWithdrawals.length !== 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Total: <span className="font-medium text-accent">${(pendingWithdrawalTotal / 100).toFixed(2)}</span> awaiting review
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-accent text-accent-foreground hover:bg-accent/80 gap-2 shrink-0"
+            onClick={() => onNavigate?.("players")}
+          >
+            Review Withdrawals <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Top Stats */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4" data-tour="admin-stats">
         {stats.map((stat) => (

@@ -243,9 +243,25 @@
 			});
 		});
 
-					// Handle window resize — CSS handles visual scaling.
-					// Do NOT call Module.setCanvasSize() as it can trigger WebGL context loss.
-					// The canvas CSS (width: 100%; height: 100%) handles display scaling.
+			// Handle window resize — CSS handles visual scaling.
+			// Do NOT call Module.setCanvasSize() as it can trigger WebGL context loss.
+			// The canvas CSS (width: 100%; height: 100%) handles display scaling.
+			const origWinAdd = window.addEventListener;
+			window.addEventListener = function(type, listener, options) {
+				if (type === 'resize' || type === 'fullscreenchange') {
+					console.log('[SpaceCadet] Blocked', type, 'event listener to prevent WebGL context loss.');
+					return;
+				}
+				return origWinAdd.call(window, type, listener, options);
+			};
+			const origDocAdd = document.addEventListener;
+			document.addEventListener = function(type, listener, options) {
+				if (type === 'fullscreenchange') {
+					console.log('[SpaceCadet] Blocked document fullscreenchange listener.');
+					return;
+				}
+				return origDocAdd.call(document, type, listener, options);
+			};
 </script>
 
 	<!-- Message Handler (Recording handled by RecordRTC at parent level) -->

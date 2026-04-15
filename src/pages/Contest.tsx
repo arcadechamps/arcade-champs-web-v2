@@ -27,7 +27,7 @@ const statusColors: Record<string, string> = {
 function ContestCardWrapper({ index, tourProps, children }: { index: number; tourProps: Record<string, string>; children: React.ReactNode }) {
   const ref = useScrollReveal<HTMLDivElement>({ variant: "fade-up", delay: staggerDelay(index) });
   return (
-    <div ref={ref} className="rounded-lg border border-border/50 bg-card transition-all hover:neon-border-pink overflow-hidden" {...tourProps}>
+    <div ref={ref} className="rounded-lg border border-border/50 bg-card transition-all hover:neon-border-pink overflow-hidden w-full max-w-[420px]" {...tourProps}>
       {children}
     </div>
   );
@@ -399,7 +399,7 @@ const Contest = () => {
               <Button variant="outline" className="border-white/10 text-white" onClick={() => { setFilterStatus("all"); setFilterEntry("all"); setFilterParticipating("all"); }}>Clear Filters</Button>
             </div>
           ) : (
-            <div className={`data-tour-contest-list gap-6 ${filteredContests.length >= 3 ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : filteredContests.length === 2 ? 'grid grid-cols-1 md:grid-cols-2' : 'space-y-6'}`} data-tour="contest-list">
+            <div className="data-tour-contest-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-tour="contest-list">
               {filteredContests.map((c, idx) => {
                 const joined = isJoined(c.id);
                 const { isBanned, banReason } = getBanStatus(c.id);

@@ -6,6 +6,16 @@ import { ArrowLeft, Gamepad2, Shield, Clock, Trophy, Loader2, Keyboard } from "l
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { getGameConfig } from "@/data/games-config";
@@ -58,13 +68,14 @@ const ContestPlay = () => {
   const [timeUp, setTimeUp] = useState(false);
   const [extractingScore, setExtractingScore] = useState(false);
   const [extractedScore, setExtractedScore] = useState<number | null>(null);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const screenshotTakenRef = useRef(false);
   const isProcessingScreenshotRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
   const userRef = useRef(user);
   userRef.current = user;
-  const submitVerdictRef = useRef<(score: number) => Promise<void>>(async () => {});
+  const submitVerdictRef = useRef<(score: number) => Promise<void>>(async () => { });
 
   // Input log for anti-cheat evidence
   const inputLogRef = useRef<Array<{ t: string; k?: string; c?: string; b?: number; ts: number }>>([]);
@@ -364,6 +375,57 @@ const ContestPlay = () => {
   );
   submitVerdictRef.current = submitAntiCheatVerdict;
 
+  // ── Manual end-session handler ────────────────────────────────────────────
+  // Guards with the same idempotency ref the timer uses (`screenshotTakenRef`),
+  // so a manual end cannot race with an imminent natural expiry.
+  const handleManualEndSession = useCallback(() => {
+    if (!gameStarted || timeUp || screenshotTakenRef.current) return;
+
+    // Prevent the countdown timer from firing a duplicate screenshot
+    screenshotTakenRef.current = true;
+
+    // Stop the countdown immediately
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Capture screenshot → triggers handleScreenshot → score extraction + DB update
+    gamePlayerRef.current?.captureScreenshot();
+
+    // Stop and upload the gameplay recording
+    gamePlayerRef.current?.stopRecording().then(async (recordingFile) => {
+      const currentUser = userRef.current;
+      const currentSessionId = sessionIdRef.current;
+      if (recordingFile && currentUser && currentSessionId) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token;
+          const formData = new FormData();
+          formData.append("recording", recordingFile);
+          formData.append("session_id", currentSessionId);
+          const res = await fetch(
+            `${BASE_URL}/functions/v1/upload-recording`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: formData,
+            }
+          );
+          const result = await res.json();
+          if (!res.ok) {
+            console.error("[ContestPlay] Manual-end recording upload failed:", result);
+          }
+        } catch (err) {
+          console.error("[ContestPlay] Manual-end recording upload error:", err);
+        }
+      }
+    });
+
+    // Transition UI to the existing end-of-session overlay
+    setTimeUp(true);
+  }, [gameStarted, timeUp, BASE_URL]);
+
   // Countdown timer — capture screenshot right before time ends
   useEffect(() => {
     if (!gameStarted || timeUp) return;
@@ -587,8 +649,8 @@ const ContestPlay = () => {
   const config = getGameConfig(game.slug);
   const timerColor =
     timeRemaining <= 30 ? "text-destructive" :
-    timeRemaining <= 60 ? "text-yellow-500" :
-    "text-neon-green";
+      timeRemaining <= 60 ? "text-yellow-500" :
+        "text-neon-green";
   const timerPulse = timeRemaining <= 30 && !timeUp ? "animate-pulse" : "";
 
   const generateContestPlaySchema = () => {
@@ -617,9 +679,9 @@ const ContestPlay = () => {
 
   return (
     <Layout>
-      <PageMeta 
-        title={`${game.title} | ${contest.title} - Contest Mode`} 
-        description={`Play ${game.title} in the ${contest.title} contest on Arcade Champs.`} 
+      <PageMeta
+        title={`${game.title} | ${contest.title} - Contest Mode`}
+        description={`Play ${game.title} in the ${contest.title} contest on Arcade Champs.`}
         schema={generateContestPlaySchema()}
         ogImage={game.thumbnail_path ? `${BASE_URL}/storage/v1/object/public/game-thumbnails/${game.thumbnail_path}` : undefined}
         canonicalUrl={`/contest-play/${contest.slug}/${game.slug}`}
@@ -634,6 +696,32 @@ const ContestPlay = () => {
         isDeducting={isDeducting}
         deductError={deductError}
       />
+
+      {/* ── End-session confirmation dialog ─────────────────────────────── */}
+      <AlertDialog open={showEndConfirm} onOpenChange={setShowEndConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-arcade text-sm">End Your Game?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your session will end immediately and your current score will be captured.
+              This cannot be undone — the game will not continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Playing</AlertDialogCancel>
+            <AlertDialogAction
+              id="confirm-end-session-btn"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setShowEndConfirm(false);
+                handleManualEndSession();
+              }}
+            >
+              End my Game
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <section className="bg-grid py-6">
         <div className="container">
@@ -673,6 +761,7 @@ const ContestPlay = () => {
                   onScreenshot={handleScreenshot}
                   onKeyboardEvent={handleKeyboardEvent}
                   onGamepadEvent={handleGamepadEvent}
+                  onEndSession={!timeUp ? () => setShowEndConfirm(true) : undefined}
                 />
               ) : (
                 <div className="flex h-[500px] items-center justify-center">

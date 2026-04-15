@@ -103,9 +103,9 @@ const FreePlay = () => {
 
   return (
     <Layout>
-      <PageMeta 
-        title={`${game.title} - Free Play`} 
-        description={`Play ${game.title} for free on Arcade Champs.`} 
+      <PageMeta
+        title={`${game.title} - Free Play`}
+        description={`Play ${game.title} for free on Arcade Champs.`}
         schema={generateGameSchema()}
         ogImage={thumbnailUrl}
         canonicalUrl={`/free-play/${game.slug}`}

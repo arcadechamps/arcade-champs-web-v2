@@ -103,6 +103,17 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
     return `${days}d ago`;
   };
 
+  const timeLeft = (dateStr: string) => {
+    const diff = new Date(dateStr).getTime() - Date.now();
+    if (diff <= 0) return "Ended";
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ${mins % 60}m`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ${hrs % 24}h`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Unclaimed / Pending Prizes Banner */}
@@ -208,12 +219,18 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
             {transactions.length > 0 ? (
               <div className="space-y-2">
                 {transactions.slice(0, 3).map(tx => {
-                  const isCredit = tx.type === "topup" || tx.type === "payout";
+                  const isCredit = tx.amount_cents > 0;
+                  const amountColor = tx.type === "admin_adjust" 
+                    ? (isCredit ? "text-primary text-glow-blue" : "text-accent") 
+                    : (isCredit ? "text-neon-green" : "text-accent");
+
                   return (
                     <div key={tx.id} className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground capitalize">{tx.type.replace("_", " ")}</span>
-                      <span className={isCredit ? "text-neon-green" : "text-accent"}>
-                        {isCredit ? "+" : "-"}${(tx.amount_cents / 100).toFixed(2)}
+                      <span className="text-muted-foreground capitalize">
+                        {tx.type === "admin_adjust" ? "Arcade Champs Transaction" : tx.type.replace("_", " ")}
+                      </span>
+                      <span className={amountColor}>
+                        {isCredit ? "+" : "-"}${(Math.abs(tx.amount_cents) / 100).toFixed(2)}
                       </span>
                     </div>
                   );
@@ -296,7 +313,7 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
                     </p>
                   </div>
                   {c.ends_at && (
-                    <span className="text-xs text-accent">{timeAgo(c.ends_at)} left</span>
+                    <span className="text-xs text-accent">{timeLeft(c.ends_at)} left</span>
                   )}
                 </div>
               ))}

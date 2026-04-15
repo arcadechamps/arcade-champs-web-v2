@@ -14,6 +14,7 @@ import AdminNewsletterSubscribers from "@/components/dashboard/AdminNewsletterSu
 import Leaderboard from "@/components/dashboard/Leaderboard";
 import ProfileSettings from "@/components/dashboard/ProfileSettings";
 import AdminSessions from "@/components/dashboard/AdminSessions";
+import AdminLeaderboard from "@/components/dashboard/AdminLeaderboard";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardFreeGames from "@/components/dashboard/DashboardFreeGames";
 import DashboardContestGames from "@/components/dashboard/DashboardContestGames";
@@ -62,6 +63,8 @@ const DashboardContent = ({
           return <AdminAntiCheat logs={antiCheatLogs} profiles={profiles} games={games} contests={contests} onRefetch={refetch} />;
         case "sessions":
           return <AdminSessions sessions={sessions} games={games} contests={contests} profiles={profiles} />;
+        case "leaderboards":
+          return <AdminLeaderboard contests={contests} games={games} logs={antiCheatLogs} winners={winners} />;
         case "newsletter":
           return <AdminNewsletterSubscribers />;
         default:
@@ -78,7 +81,7 @@ const DashboardContent = ({
         case "contests":
           return <PlayerContests contests={contests} sessions={sessions} winners={winners} profiles={profiles} />;
         case "wallet":
-          return <WalletPanel wallet={defaultWallet} transactions={transactions} onRefetch={refetch} />;
+          return <WalletPanel wallet={defaultWallet} transactions={transactions} onRefetch={refetch} onNavigate={onNavigate} />;
         case "sessions":
           return <SessionHistory sessions={sessions} games={games} contests={contests} />;
         case "leaderboards":

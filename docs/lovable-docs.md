@@ -698,6 +698,11 @@ See [Section 8.12](#812-network-error-handling).
 
 ## 14. Bug Fixes & Change Log
 
+### 2026-04-13: Space Cadet Pinball Fullscreen Features & Fixes
+
+- **Context Loss (Black Screen)**: Expanding the pinball game to fullscreen triggered a `resize` event, causing Emscripten/SDL to dynamically resize the canvas and clear the WebGL buffer, producing a black screen (and an automated OCR score of 0). Fixed by intercepting and blocking `resize` and `fullscreenchange` event listeners directly in `public/SpaceCadet/3DPinballSpaceCadet.htm`, allowing the original un-cleared buffer to be visually stretched instead via CSS.
+- **Input Freeze (Focus Loss)**: Expanding the game caused the "Fullscreen" UI button to steal the DOM active focus. Keyboard inputs (like `Z`, `C`, and `Space`) stopped reaching the `iframe`, freezing the game controls. Fixed by adding forced focus hand-offs (`iframeRef.current?.focus()`) inside `handleFullscreenChange` and `onClick` interceptors within the `GamePlayer.tsx` wrapper.
+
 ### 2026-04-12: Contact Form & Resend Integration
 
 - **Contact Page**: Created a dedicated `/contact` page with a Zod-validated `react-hook-form` capturing user inquiries. Implemented dynamic loading states and success/error toasts.
