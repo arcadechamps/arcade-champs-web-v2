@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, Wallet, LayoutDashboard } from "lucide-react";
+import { LogOut, Wallet, LayoutDashboard, Globe } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +31,7 @@ const Header = () => {
   const navigate = useNavigate();
 
   const { user, profile, signOut } = useAuth();
+  const isAdmin = profile?.is_admin ?? false;
   const [isScrolled, setIsScrolled] = useState(false);
   const queryClient = useQueryClient();
 
@@ -63,10 +64,16 @@ const Header = () => {
   }, [user, queryClient]);
 
   const { data: balanceCents = null } = useQuery({
-    queryKey: ["wallet-balance", user?.id],
+    queryKey: ["wallet-balance", user?.id, isAdmin],
     queryFn: async () => {
-      const { data } = await supabase.from("wallets").select("balance_cents").eq("user_id", user!.id).maybeSingle();
-      return data?.balance_cents ?? 0;
+      if (isAdmin) {
+        const { data } = await supabase.from("wallets").select("balance_cents");
+        if (!data) return 0;
+        return data.reduce((sum, w) => sum + (w.balance_cents || 0), 0);
+      } else {
+        const { data } = await supabase.from("wallets").select("balance_cents").eq("user_id", user!.id).maybeSingle();
+        return data?.balance_cents ?? 0;
+      }
     },
     enabled: !!user,
     staleTime: 2 * 60 * 1000,
@@ -111,7 +118,7 @@ const Header = () => {
           onSelect={(e) => e.preventDefault()}
         >
           <span className="flex items-center gap-2 text-muted-foreground">
-            <Wallet className="h-4 w-4" /> Balance
+            {isAdmin ? <Globe className="h-4 w-4" /> : <Wallet className="h-4 w-4" />} {isAdmin ? "Platform Balance" : "Balance"}
           </span>
           <span className="font-mono font-semibold text-primary">
             ${balanceCents !== null ? (balanceCents / 100).toFixed(2) : "—"}
