@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Users, Trophy, Zap, DollarSign, AlertTriangle, ArrowRight, TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown, Download, BellRing, Globe } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,10 +27,11 @@ interface AdminOverviewProps {
   antiCheatLogs?: AntiCheatLog[];
   wallets?: Wallet[];
   winners?: ContestWinner[];
-  onNavigate?: (section: string) => void;
+
 }
 
-const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCheatLogs = [], wallets = [], winners = [], onNavigate }: AdminOverviewProps) => {
+const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCheatLogs = [], wallets = [], winners = [] }: AdminOverviewProps) => {
+  const navigate = useNavigate();
   const totalPlayers = profiles.length;
   const activeContests = contests.filter(c => c.status === "active").length;
 
@@ -207,7 +209,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
           <Button
             size="sm"
             className="bg-accent text-accent-foreground hover:bg-accent/80 gap-2 shrink-0"
-            onClick={() => onNavigate?.("players")}
+            onClick={() => navigate("/dashboard/admin/players")}
           >
             Review Withdrawals <ArrowRight className="h-4 w-4" />
           </Button>
@@ -249,7 +251,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Export CSV" onClick={handleExportChartData}>
                 <Download className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] sm:text-xs text-primary hover:text-black hidden sm:flex" onClick={() => onNavigate?.("sessions")}>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] sm:text-xs text-primary hover:text-black hidden sm:flex" onClick={() => navigate("/dashboard/admin/sessions")}>
                 Ledger <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
             </div>
@@ -302,7 +304,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
             <CardTitle className="font-arcade text-[10px] text-foreground flex items-center gap-2">
               <AlertTriangle className={`h-4 w-4 ${flaggedLogs.length > 0 ? "text-destructive" : "text-muted-foreground"}`} /> Anti-Cheat Alerts
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => onNavigate?.("anticheat")}>
+            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => navigate("/dashboard/admin/anticheat")}>
               Review <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
           </CardHeader>

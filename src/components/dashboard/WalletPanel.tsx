@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowDownCircle, ArrowUpCircle, DollarSign, Plus, Settings, ExternalLink, Wallet, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ interface WalletPanelProps {
   wallet: WalletType;
   transactions: WalletTransaction[];
   onRefetch?: () => void;
-  onNavigate?: (section: string) => void;
+
 }
 
 const txTypeConfig: Record<string, { icon: typeof ArrowDownCircle; label: string; color: string }> = {
@@ -33,7 +34,8 @@ const txTypeConfig: Record<string, { icon: typeof ArrowDownCircle; label: string
   admin_adjust: { icon: Settings, label: "Arcade Champs Transaction", color: "text-primary" },
 };
 
-const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPanelProps) => {
+const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const hasPayoutMethod = !!(profile as any)?.payout_method;
 
@@ -174,7 +176,7 @@ const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPane
                       </div>
                       <Button
                         className="w-full bg-accent text-accent-foreground hover:bg-accent/80 gap-2"
-                        onClick={() => { setWithdrawOpen(false); onNavigate?.("profile"); }}
+                        onClick={() => { setWithdrawOpen(false); navigate("/dashboard/profile"); }}
                       >
                         <Settings className="h-4 w-4" />
                         Go to Profile Settings

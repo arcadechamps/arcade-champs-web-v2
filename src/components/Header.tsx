@@ -89,7 +89,7 @@ const Header = () => {
     ? profile.display_name.slice(0, 2).toUpperCase()
     : (user?.email?.slice(0, 2).toUpperCase() ?? "?");
 
-  const isDashboard = location.pathname === "/dashboard";
+  const isDashboard = location.pathname.startsWith("/dashboard");
 
   const profileDropdown = (avatarSize = "h-9 w-9") => (
     <DropdownMenu>
