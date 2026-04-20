@@ -31,7 +31,7 @@ interface PlayerOverviewProps {
 const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games = [], winners = [] }: PlayerOverviewProps) => {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
-  
+
   const [shippingAddress, setShippingAddress] = useState("");
   const [isSubmittingShipping, setIsSubmittingShipping] = useState(false);
 
@@ -57,14 +57,14 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
       toast.error("Please enter a valid shipping address");
       return;
     }
-    
+
     setIsSubmittingShipping(true);
     try {
       const { error } = await supabase
         .from("profiles")
         .update({ shipping_address: shippingAddress })
         .eq("user_id", user.id);
-        
+
       if (error) throw error;
       toast.success("Shipping address saved!", { description: "We will use this address to fulfill your prizes." });
       await refreshProfile();
@@ -146,23 +146,23 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
                 );
               })}
             </div>
-            
+
             {needsShippingInfo ? (
               <div className="pt-2 border-t border-neon-pink/20">
                 <p className="text-sm text-muted-foreground mb-3 font-medium">Please provide your shipping address to claim your physical prizes:</p>
                 <div className="flex items-start gap-2">
                   <div className="relative flex-1">
                     <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Full Name, Street Address, City, State ZIP" 
+                    <Input
+                      placeholder="Full Name, Street Address, City, State ZIP"
                       value={shippingAddress}
                       onChange={(e) => setShippingAddress(e.target.value)}
                       className="pl-9 bg-background/50 focus-visible:ring-neon-pink h-9 text-xs"
                     />
                   </div>
-                  <Button 
-                    onClick={handleUpdateShipping} 
-                    disabled={isSubmittingShipping || !shippingAddress.trim()} 
+                  <Button
+                    onClick={handleUpdateShipping}
+                    disabled={isSubmittingShipping || !shippingAddress.trim()}
                     className="h-9 bg-neon-pink text-white hover:bg-neon-pink/80 w-24 shrink-0 transition-all font-arcade text-[10px]"
                   >
                     {isSubmittingShipping ? "Saving..." : "Submit"}
@@ -174,9 +174,9 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
                 <p className="text-sm text-muted-foreground">
                   Your prizes will be shipped to: <span className="text-foreground pl-1">{profile?.shipping_address}</span>
                 </p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="h-8 text-xs border-primary text-primary hover:bg-primary/10 transition-colors"
                   onClick={() => navigate("/dashboard/profile")}
                 >
@@ -221,9 +221,10 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
             {transactions.length > 0 ? (
               <div className="space-y-2">
                 {transactions.slice(0, 3).map(tx => {
-                  const isCredit = tx.amount_cents > 0;
-                  const amountColor = tx.type === "admin_adjust" 
-                    ? (isCredit ? "text-primary text-glow-blue" : "text-accent") 
+                  const debitTypes = ["session_fee", "payout"];
+                  const isCredit = debitTypes.includes(tx.type) ? false : tx.amount_cents > 0;
+                  const amountColor = tx.type === "admin_adjust"
+                    ? (isCredit ? "text-primary text-glow-blue" : "text-accent")
                     : (isCredit ? "text-neon-green" : "text-accent");
 
                   return (

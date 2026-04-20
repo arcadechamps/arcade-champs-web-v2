@@ -165,9 +165,10 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   }
 
   for (const tx of transactions) {
+    const isCredit = tx.type === "topup" || (tx.type === "admin_adjust" && tx.amount_cents > 0);
     recentActivity.push({
       id: `tx-${tx.id}`, type: "transaction", label: tx.type.replace("_", " "),
-      detail: `$${(tx.amount_cents / 100).toFixed(2)}`, time: tx.created_at,
+      detail: `${isCredit ? "+" : "-"}$${(Math.abs(tx.amount_cents) / 100).toFixed(2)}`, time: tx.created_at,
       color: tx.type === "topup" ? "text-neon-green" : tx.type === "session_fee" ? "text-accent" : "text-primary",
     });
   }
@@ -183,7 +184,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   }
 
   recentActivity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-  
+
   const [activityPage, setActivityPage] = useState(1);
   const { totalPages, totalItems, pageSize, getPage } = usePagination(recentActivity, 8);
   const paginatedActivity = getPage(activityPage);
@@ -284,7 +285,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
                   <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontSize: "12px", color: "hsl(var(--foreground))" }}
                     itemStyle={{ fontSize: "12px" }}
                   />

@@ -300,7 +300,8 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
           {paginatedTx.map((tx) => {
             const config = txTypeConfig[tx.type] ?? { icon: DollarSign, label: tx.type, color: "text-muted-foreground" };
             const Icon = config.icon;
-            const isCredit = tx.amount_cents > 0;
+            const debitTypes = ["session_fee", "payout"];
+            const isCredit = debitTypes.includes(tx.type) ? false : tx.amount_cents > 0;
             const amountColor = tx.type === "admin_adjust" 
               ? (isCredit ? "text-primary text-glow-blue" : "text-accent") 
               : (isCredit ? "text-neon-green" : "text-accent");
