@@ -91,11 +91,12 @@ export const GAMES: GameConfig[] = [
     inputMethod: 'controller',
   },
   {
-    id: 'sonic',
-    title: 'Sonic the Hedgehog',
-    rom: 'emulator/segaMD/sonic.bin',
+    id: 'ultimate-mk-3',
+    title: 'Ultimate Mortal Kombat 3',
+    rom: 'emulator/sega-mega-drive/ultimate-mk-3.smd',
     core: 'segaMD',
-    description: 'Classic Sega Mega Drive platformer',
+    bios: 'bios/sega.zip',
+    description: 'Classic Sega Mega Drive fighting game',
     inputMethod: 'controller',
   },
 ];

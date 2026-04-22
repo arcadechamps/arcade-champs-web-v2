@@ -133,6 +133,7 @@ const FreePlay = () => {
                 romPath={game.rom_path ?? config?.rom ?? game.slug}
                 core={game.core ?? config?.core ?? "mame2003_plus"}
                 title={game.title}
+                bios={config?.bios}
               />
             </div>
             <div className="hidden shrink-0 lg:block">
