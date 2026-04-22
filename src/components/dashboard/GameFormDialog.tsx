@@ -257,7 +257,12 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
                 <Label className="text-muted-foreground">Title</Label>
                 <Input
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (!isEdit) {
+                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+                    }
+                  }}
                   required={!useConfig}
                   placeholder="Game Title"
                   className="border-border bg-secondary/50 text-foreground"
@@ -269,7 +274,7 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
                 <Label className="text-muted-foreground">Slug</Label>
                 <Input
                   value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''))}
                   required={!useConfig}
                   placeholder="game-slug"
                   className="border-border bg-secondary/50 text-foreground"
