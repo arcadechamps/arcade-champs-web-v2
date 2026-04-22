@@ -42,7 +42,7 @@ const GameCard = ({
           <Gamepad2 className="h-12 w-12 text-primary/40 mb-2 transition-transform duration-300 group-hover:scale-110" />
         </div>
       )}
-      
+
       {/* Top Badges */}
       <div className="absolute top-3 left-3 flex items-center gap-2">
         {contestSlug && (
@@ -52,7 +52,7 @@ const GameCard = ({
         )}
       </div>
     </div>
-    
+
     <div className="p-5 flex flex-col gap-5 bg-[#172033] flex-1">
       {/* Title & Description */}
       <div>
@@ -90,8 +90,8 @@ const GameCard = ({
 
       {/* Action Buttons */}
       <div className="flex gap-3 mt-1">
-        <Button 
-          className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg font-bold h-11 transition-transform active:scale-[0.98]" 
+        <Button
+          className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg font-bold h-11 transition-transform active:scale-[0.98]"
           asChild
         >
           <Link to={`/free-play/${slug}`}>

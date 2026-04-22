@@ -99,6 +99,15 @@ export const GAMES: GameConfig[] = [
     description: 'Classic Sega Mega Drive fighting game',
     inputMethod: 'controller',
   },
+  {
+    id: 'metal-slug-x',
+    title: 'Metal Slug X (PS1)',
+    rom: 'emulator/playstation/Metal Slug X.zip',
+    core: 'psx',
+    bios: 'bios/ps1.zip',
+    description: 'Classic PS1 action shooter',
+    inputMethod: 'controller',
+  },
 ];
 
 export const getGameConfig = (slug: string) => GAMES.find((g) => g.id === slug);

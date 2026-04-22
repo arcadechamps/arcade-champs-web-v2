@@ -15,7 +15,7 @@ import { getKeyMapping, type DbKeymapping } from "@/data/keymappings";
 import type { Game } from "@/types/database";
 
 const STORAGE_BASE = "https://vppcnlzbpovswfjbdmpm.supabase.co/storage/v1/object/public";
-const CORES = ["mame2003_plus", "fceumm", "snes9x", "gambatte", "segaMD", "custom"];
+const CORES = ["mame2003_plus", "fceumm", "snes9x", "gambatte", "segaMD", "psx", "custom"];
 
 interface GameFormDialogProps {
   open: boolean;
