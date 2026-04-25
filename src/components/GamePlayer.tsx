@@ -37,6 +37,7 @@ interface GamePlayerProps {
 
 export interface GamePlayerHandle {
   captureScreenshot: () => void;
+  endSessionAndCapture: () => void;
   startRecording: () => void;
   stopRecording: () => Promise<File | null>;
 }
@@ -122,11 +123,17 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
       }
     }, [findGameCanvas]);
 
-    // Expose captureScreenshot, startRecording, stopRecording to parent
+    // Expose captureScreenshot, endSessionAndCapture, startRecording, stopRecording to parent
     useImperativeHandle(ref, () => ({
       captureScreenshot: () => {
         iframeRef.current?.contentWindow?.postMessage(
           { type: "CAPTURE_SCREENSHOT" },
+          "*"
+        );
+      },
+      endSessionAndCapture: () => {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: "END_SESSION_PAUSE" },
           "*"
         );
       },

@@ -268,6 +268,36 @@ const ContestPlay = () => {
       isProcessingScreenshotRef.current = true;
       setExtractingScore(true);
 
+      // 0. Stop and upload the gameplay recording NOW that screenshot is done
+      // This ensures the 2-second pause delay is included in the video
+      gamePlayerRef.current?.stopRecording().then(async (recordingFile) => {
+        const currentUser = userRef.current;
+        const currentSessionId = sessionIdRef.current;
+        if (recordingFile && currentUser && currentSessionId) {
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData?.session?.access_token;
+            const formData = new FormData();
+            formData.append("recording", recordingFile);
+            formData.append("session_id", currentSessionId);
+            const res = await fetch(
+              `${BASE_URL}/functions/v1/upload-recording`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+              }
+            );
+            const result = await res.json();
+            if (!res.ok) {
+              console.error("[ContestPlay] Recording upload failed:", result);
+            }
+          } catch (err) {
+            console.error("[ContestPlay] Recording upload error:", err);
+          }
+        }
+      });
+
       // 1. Upload screenshot via edge function (handles compression & storage)
       try {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -390,41 +420,12 @@ const ContestPlay = () => {
       timerRef.current = null;
     }
 
-    // Capture screenshot → triggers handleScreenshot → score extraction + DB update
-    gamePlayerRef.current?.captureScreenshot();
-
-    // Stop and upload the gameplay recording
-    gamePlayerRef.current?.stopRecording().then(async (recordingFile) => {
-      const currentUser = userRef.current;
-      const currentSessionId = sessionIdRef.current;
-      if (recordingFile && currentUser && currentSessionId) {
-        try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const token = sessionData?.session?.access_token;
-          const formData = new FormData();
-          formData.append("recording", recordingFile);
-          formData.append("session_id", currentSessionId);
-          const res = await fetch(
-            `${BASE_URL}/functions/v1/upload-recording`,
-            {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-              body: formData,
-            }
-          );
-          const result = await res.json();
-          if (!res.ok) {
-            console.error("[ContestPlay] Manual-end recording upload failed:", result);
-          }
-        } catch (err) {
-          console.error("[ContestPlay] Manual-end recording upload error:", err);
-        }
-      }
-    });
+    // Send pause signal and wait 2 seconds for screenshot
+    gamePlayerRef.current?.endSessionAndCapture();
 
     // Transition UI to the existing end-of-session overlay
     setTimeUp(true);
-  }, [gameStarted, timeUp, BASE_URL]);
+  }, [gameStarted, timeUp]);
 
   // Countdown timer — capture screenshot right before time ends
   useEffect(() => {
@@ -436,38 +437,7 @@ const ContestPlay = () => {
           // Capture screenshot before showing time-up overlay
           if (!screenshotTakenRef.current) {
             screenshotTakenRef.current = true;
-            gamePlayerRef.current?.captureScreenshot();
-
-            // Stop recording and upload
-            gamePlayerRef.current?.stopRecording().then(async (recordingFile) => {
-              const currentUser = userRef.current;
-              const currentSessionId = sessionIdRef.current;
-              if (recordingFile && currentUser && currentSessionId) {
-                try {
-                  const { data: sessionData } = await supabase.auth.getSession();
-                  const token = sessionData?.session?.access_token;
-                  const formData = new FormData();
-                  formData.append("recording", recordingFile);
-                  formData.append("session_id", currentSessionId);
-                  const res = await fetch(
-                    `${BASE_URL}/functions/v1/upload-recording`,
-                    {
-                      method: "POST",
-                      headers: { Authorization: `Bearer ${token}` },
-                      body: formData,
-                    }
-                  );
-                  const result = await res.json();
-                  if (!res.ok) {
-                    console.error("[ContestPlay] Recording upload failed:", result);
-                  }
-                } catch (err) {
-                  console.error("[ContestPlay] Recording upload error:", err);
-                }
-              } else {
-                console.warn("[ContestPlay] Recording skipped — missing file, user, or sessionId");
-              }
-            });
+            gamePlayerRef.current?.endSessionAndCapture();
           }
           // Anti-cheat verdict is submitted after score extraction (see handleScreenshot callbacks)
           setTimeUp(true);
