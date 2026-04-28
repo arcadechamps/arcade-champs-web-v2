@@ -16,6 +16,7 @@ import Leaderboard from "@/components/dashboard/Leaderboard";
 import ProfileSettings from "@/components/dashboard/ProfileSettings";
 import AdminSessions from "@/components/dashboard/AdminSessions";
 import AdminLeaderboard from "@/components/dashboard/AdminLeaderboard";
+import AdminEmailManager from "@/components/dashboard/AdminEmailManager";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardFreeGames from "@/components/dashboard/DashboardFreeGames";
 import DashboardContestGames from "@/components/dashboard/DashboardContestGames";
@@ -199,6 +200,10 @@ const AdminNewsletterPage = () => {
   return <AdminNewsletterSubscribers />;
 };
 
+const AdminEmailsPage = () => {
+  return <AdminEmailManager />;
+};
+
 // ── Root dashboard component ───────────────────────────────────────
 const Dashboard = () => {
   const { profile } = useAuth();
@@ -231,6 +236,7 @@ const Dashboard = () => {
               <Route path="sessions" element={<AdminSessionsPage />} />
               <Route path="leaderboards" element={<AdminLeaderboardsPage />} />
               <Route path="newsletter" element={<AdminNewsletterPage />} />
+              <Route path="emails" element={<AdminEmailsPage />} />
             </Route>
 
             {/* Player nested routes */}

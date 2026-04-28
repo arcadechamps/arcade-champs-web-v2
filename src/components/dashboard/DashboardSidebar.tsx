@@ -5,6 +5,7 @@ import {
   Users,
   ShieldAlert,
   Mail,
+  MailPlus,
   Wallet,
   History,
   Medal,
@@ -44,14 +45,15 @@ const adminItems: MenuItem[] = [
   { key: "sessions", label: "Game Sessions", icon: History },
   { key: "leaderboards", label: "Leaderboards", icon: Medal },
   { key: "newsletter", label: "Newsletter", icon: Mail },
+  { key: "emails", label: "Email Manager", icon: MailPlus },
 ];
 
 const playerItems: MenuItem[] = [
   { key: "home", label: "Home Dashboard", icon: LayoutDashboard },
+  { key: "wallet", label: "My Wallet", icon: Wallet },
   { key: "free-games", label: "Free Games", icon: Gamepad2 },
   { key: "contest-games", label: "Contest Games", icon: Trophy },
   { key: "contests", label: "Find Contests", icon: Trophy },
-  { key: "wallet", label: "My Wallet", icon: Wallet },
   { key: "sessions", label: "Play History", icon: History },
   { key: "leaderboards", label: "Leaderboards", icon: Medal },
   { key: "profile", label: "My Profile", icon: UserCog },
