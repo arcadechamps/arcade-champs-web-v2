@@ -257,6 +257,13 @@ const ContestPlay = () => {
       toast.success(`$${(feeCents / 100).toFixed(2)} entry fee deducted. Good luck!`);
     }
 
+    // Play insert-coin sound effect on successful session start
+    try {
+      const coin = new Audio("/insert-coin.mp3");
+      coin.volume = 0.7;
+      coin.play().catch(() => { /* autoplay blocked — silently ignore */ });
+    } catch { /* Audio not supported — silently ignore */ }
+
     setShowRules(false);
     setGameStarted(true);
   }, [user, contest, queryClient]);
