@@ -39,7 +39,8 @@ const formatTime = (s: number) => {
 };
 
 const ContestPlay = () => {
-  const BASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "vppcnlzbpovswfjbdmpm";
+  const BASE_URL = import.meta.env.VITE_SUPABASE_URL || `https://${projectId}.supabase.co`;
   const { contestSlug, gameId } = useParams<{ contestSlug: string; gameId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -68,9 +69,11 @@ const ContestPlay = () => {
   const [timeUp, setTimeUp] = useState(false);
   const [extractingScore, setExtractingScore] = useState(false);
   const [extractedScore, setExtractedScore] = useState<number | null>(null);
+  const [extractionFailed, setExtractionFailed] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const screenshotTakenRef = useRef(false);
+  const screenshotsTakenRef = useRef(new Set<number>());
   const isProcessingScreenshotRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
   const userRef = useRef(user);
@@ -270,8 +273,34 @@ const ContestPlay = () => {
 
   // Upload screenshot via edge function, then extract score
   const handleScreenshot = useCallback(
-    async (file: File) => {
-      if (!user || !sessionId || !game || isProcessingScreenshotRef.current) return;
+    async (file: File, index?: number) => {
+      if (!user || !sessionId || !game) return;
+
+      // Silent upload for preliminary screenshots (T-15 and T-10)
+      if (index === 1 || index === 2) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token;
+          const formData = new FormData();
+          formData.append("screenshot", file);
+          formData.append("session_id", sessionId);
+          formData.append("index", index.toString());
+
+          await fetch(
+            `${BASE_URL}/functions/v1/upload-screenshot`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: formData,
+            }
+          );
+        } catch (err) {
+          console.error(`[ContestPlay] Screenshot ${index} upload error:`, err);
+        }
+        return;
+      }
+
+      if (isProcessingScreenshotRef.current) return;
       isProcessingScreenshotRef.current = true;
       setExtractingScore(true);
 
@@ -312,6 +341,7 @@ const ContestPlay = () => {
         const formData = new FormData();
         formData.append("screenshot", file);
         formData.append("session_id", sessionId);
+        formData.append("index", "3");
 
         const uploadRes = await fetch(
           `${BASE_URL}/functions/v1/upload-screenshot`,
@@ -372,6 +402,7 @@ const ContestPlay = () => {
           // Submit anti-cheat verdict with score 0 as fallback
           await submitVerdictRef.current(0);
           setExtractingScore(false);
+          setExtractionFailed(true);
           isProcessingScreenshotRef.current = false;
         },
       });
@@ -434,11 +465,22 @@ const ContestPlay = () => {
     setTimeUp(true);
   }, [gameStarted, timeUp]);
 
-  // Countdown timer — capture screenshot right before time ends
+  // Countdown timer — capture screenshots at intervals and right before time ends
   useEffect(() => {
     if (!gameStarted || timeUp) return;
     timerRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
+        // T-15 screenshot
+        if (prev === 15 && !screenshotsTakenRef.current.has(1)) {
+          screenshotsTakenRef.current.add(1);
+          gamePlayerRef.current?.captureScreenshot(1);
+        }
+        // T-10 screenshot
+        if (prev === 10 && !screenshotsTakenRef.current.has(2)) {
+          screenshotsTakenRef.current.add(2);
+          gamePlayerRef.current?.captureScreenshot(2);
+        }
+
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           // Capture screenshot before showing time-up overlay
@@ -457,6 +499,30 @@ const ContestPlay = () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [gameStarted, timeUp, submitAntiCheatVerdict]);
+
+  // ── Play Again handler ────────────────────────────────────────────────────
+  const handlePlayAgain = useCallback(() => {
+    setSessionId(null);
+    sessionIdRef.current = null;
+    setTimeUp(false);
+    setExtractedScore(null);
+    setExtractingScore(false);
+    setExtractionFailed(false);
+    screenshotTakenRef.current = false;
+    screenshotsTakenRef.current.clear();
+    isProcessingScreenshotRef.current = false;
+    feeDeductedRef.current = false;
+    inputLogRef.current = [];
+    sessionStartMsRef.current = 0;
+    
+    if (contest) {
+      setTimeRemaining(contest.session_duration_seconds);
+      const free = (contest.session_fee_cents ?? 0) === 0;
+      const skip = free && isRulesDismissed();
+      setShowRules(!skip);
+      setGameStarted(skip);
+    }
+  }, [contest]);
 
   // --- Guard screens (login, loading, not found, not participant) ---
   if (!user) {
@@ -731,6 +797,7 @@ const ContestPlay = () => {
             <div className="relative min-w-0 flex-1 overflow-hidden rounded-lg border border-neon-pink/30 bg-card">
               {gameStarted ? (
                 <GamePlayer
+                  key={sessionId || "default"}
                   ref={gamePlayerRef}
                   romPath={game.rom_path ?? config?.rom ?? game.slug}
                   core={game.core ?? config?.core ?? "mame2003_plus"}
@@ -760,18 +827,34 @@ const ContestPlay = () => {
                       <Trophy className="mb-4 h-16 w-16 text-neon-green" />
                       <h2 className="mb-2 font-arcade text-xl text-neon-green">Score: {extractedScore}</h2>
                       <p className="mb-6 text-sm text-muted-foreground">Your score has been recorded!</p>
-                      <Button asChild>
-                        <Link to="/contest">Back to Contests</Link>
-                      </Button>
+                      <div className="flex gap-4">
+                        <Button variant="outline" onClick={handlePlayAgain} className="bg-background/50 hover:bg-background/80">
+                          Play Again
+                        </Button>
+                        <Button asChild>
+                          <Link to="/contest">Back to Contests</Link>
+                        </Button>
+                      </div>
+                    </>
+                  ) : extractionFailed ? (
+                    <>
+                      <Clock className="mb-4 h-16 w-16 text-destructive" />
+                      <h2 className="mb-2 font-arcade text-xl text-destructive">Time's Up!</h2>
+                      <p className="mb-6 text-sm text-muted-foreground">Your contest session has ended.</p>
+                      <div className="flex gap-4">
+                        <Button variant="outline" onClick={handlePlayAgain} className="bg-background/50 hover:bg-background/80">
+                          Play Again
+                        </Button>
+                        <Button asChild>
+                          <Link to="/contest">Back to Contests</Link>
+                        </Button>
+                      </div>
                     </>
                   ) : (
                     <>
                       <Clock className="mb-4 h-16 w-16 text-destructive" />
                       <h2 className="mb-2 font-arcade text-xl text-destructive">Time's Up!</h2>
-                      <p className="mb-6 text-sm text-muted-foreground">Your contest session has ended.</p>
-                      <Button asChild>
-                        <Link to="/contest">Back to Contests</Link>
-                      </Button>
+                      <p className="mb-6 text-sm text-muted-foreground">Preparing to extract score...</p>
                     </>
                   )}
                 </div>

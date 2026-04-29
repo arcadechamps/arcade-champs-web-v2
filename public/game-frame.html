@@ -106,7 +106,7 @@
         }
         screenshotSentAt = now;
         console.log('[GameFrame] Screenshot sent to parent at', now);
-        window.parent.postMessage({ type: 'emulator_screenshot', data: dataUrl }, '*');
+        window.parent.postMessage({ type: 'emulator_screenshot', data: dataUrl, index: window._screenshotIndex }, '*');
       }
 
       // ── Screenshot: direct canvas capture first, html2canvas fallback ──
@@ -212,8 +212,12 @@
       // Listen for commands from parent React app
       // Recording is now handled by RecordRTC at the parent level (GamePlayer.tsx)
       window.addEventListener('message', function (e) {
-        if (e.data?.type === 'CAPTURE_SCREENSHOT') takeScreenshot();
+        if (e.data?.type === 'CAPTURE_SCREENSHOT') {
+          window._screenshotIndex = e.data.index;
+          takeScreenshot();
+        }
         if (e.data?.type === 'END_SESSION_PAUSE') {
+          window._screenshotIndex = 3;
           window.isSessionEnded = true;
           
           // Send "P" (MAME pause) and "Enter" (Start / Console pause)

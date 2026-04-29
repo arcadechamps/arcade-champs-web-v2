@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
     const formData = await req.formData();
     const file = formData.get("screenshot") as File | null;
     const sessionId = formData.get("session_id") as string | null;
+    const index = formData.get("index") as string | null;
 
     if (!file || !sessionId) {
       return new Response(
@@ -62,7 +63,8 @@ Deno.serve(async (req) => {
     // For real compression we can use the sharp-like approach or just accept the PNG.
     // The screenshot is typically small (canvas capture ~50-200KB).
 
-    const storagePath = `${userId}/${sessionId}.png`;
+    const suffix = index ? `_${index}` : "";
+    const storagePath = `${userId}/${sessionId}${suffix}.png`;
 
     // Use service role client to bypass RLS for storage upload
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
@@ -85,22 +87,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get current screenshot count to increment
-    const { data: sessionData } = await adminClient
-      .from("game_sessions")
-      .select("screenshot_count")
-      .eq("session_id", sessionId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const currentCount = sessionData?.screenshot_count || 0;
-
-    // Update game_sessions with screenshot path and incremented count
+    // Update game_sessions with screenshot path
     const { error: updateError } = await adminClient
       .from("game_sessions")
       .update({ 
-        screenshot_path: storagePath,
-        screenshot_count: currentCount + 1
+        screenshot_path: storagePath
       })
       .eq("session_id", sessionId)
       .eq("user_id", userId);
@@ -109,7 +100,7 @@ Deno.serve(async (req) => {
       console.error("[upload-screenshot] DB update error:", updateError);
     }
 
-    console.log(`[upload-screenshot] Stored ${storagePath} (${uint8.length} bytes), count: ${currentCount + 1}`);
+    console.log(`[upload-screenshot] Stored ${storagePath} (${uint8.length} bytes)`);
 
     return new Response(
       JSON.stringify({ success: true, path: storagePath, size: uint8.length }),

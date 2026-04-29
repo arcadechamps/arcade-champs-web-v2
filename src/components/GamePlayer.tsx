@@ -28,7 +28,7 @@ interface GamePlayerProps {
   core: string;
   title: string;
   bios?: string;
-  onScreenshot?: (file: File) => void;
+  onScreenshot?: (file: File, index?: number) => void;
   onKeyboardEvent?: (event: KeyboardEventData) => void;
   onGamepadEvent?: (event: GamepadEventData) => void;
   /** When provided, renders an "End my Game" button in the topbar that fires this callback. */
@@ -36,7 +36,7 @@ interface GamePlayerProps {
 }
 
 export interface GamePlayerHandle {
-  captureScreenshot: () => void;
+  captureScreenshot: (index?: number) => void;
   endSessionAndCapture: () => void;
   startRecording: () => void;
   stopRecording: () => Promise<File | null>;
@@ -125,9 +125,9 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
 
     // Expose captureScreenshot, endSessionAndCapture, startRecording, stopRecording to parent
     useImperativeHandle(ref, () => ({
-      captureScreenshot: () => {
+      captureScreenshot: (index?: number) => {
         iframeRef.current?.contentWindow?.postMessage(
-          { type: "CAPTURE_SCREENSHOT" },
+          { type: "CAPTURE_SCREENSHOT", index },
           "*"
         );
       },
@@ -263,7 +263,7 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
             const file = new File([blob], `screenshot_${Date.now()}.png`, {
               type: "image/png",
             });
-            onScreenshotRef.current(file);
+            onScreenshotRef.current(file, event.data.index);
           } catch (err) {
             console.error("[GamePlayer] Error processing screenshot:", err);
           }

@@ -90,6 +90,7 @@ export interface GameSession {
   ended_at: string | null;
   allowed_duration_seconds: number;
   score: number | null;
+  screenshot_count: number | null;
   screenshot_path: string | null;
   recording_path: string | null;
   created_at: string;
