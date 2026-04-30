@@ -46,6 +46,8 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   const pendingWithdrawals = transactions.filter(t => t.type === "payout" && t.status === "pending");
   const pendingWithdrawalTotal = pendingWithdrawals.reduce((s, t) => s + Math.abs(t.amount_cents), 0);
 
+  const zeroScoreSessions = sessions.filter(s => s.score === 0 && s.status === "ended");
+
   const [timeRange, setTimeRange] = useState<"7d" | "4w" | "3m" | "6m" | "all">("4w");
 
   const getChartData = () => {
@@ -213,6 +215,32 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
             onClick={() => navigate("/dashboard/admin/players")}
           >
             Review Withdrawals <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Zero Score Verification Notification */}
+      {zeroScoreSessions.length > 0 && (
+        <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/20">
+              <AlertTriangle className="h-5 w-5 text-yellow-500 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {zeroScoreSessions.length} session{zeroScoreSessions.length !== 1 ? "s" : ""} with a score of 0
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Verify screenshots and manually edit scores if needed.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-yellow-500 text-yellow-950 hover:bg-yellow-500/80 gap-2 shrink-0"
+            onClick={() => navigate("/dashboard/admin/contests")}
+          >
+            Go to Contests <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
       )}

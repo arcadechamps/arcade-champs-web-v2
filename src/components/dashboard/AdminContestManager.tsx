@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trophy, Clock, Crown, Pencil, Trash2, Users, ChevronDown, ChevronUp, Ban, ShieldCheck, Image as ImageIcon, Video, Keyboard, Gift, Mail, CheckCircle, Upload, X } from "lucide-react";
+import { Plus, Trophy, Clock, Crown, Pencil, Trash2, Users, ChevronDown, ChevronUp, Ban, ShieldCheck, Image as ImageIcon, Video, Keyboard, Gift, Mail, CheckCircle, Upload, X, AlertTriangle } from "lucide-react";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -123,6 +123,11 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
   const [inputViewerLog, setInputViewerLog] = useState<InputEvent[]>([]);
   const [inputViewerPlayer, setInputViewerPlayer] = useState<string>("");
   const [mediaViewerSession, setMediaViewerSession] = useState<GameSession | null>(null);
+
+  // Edit score state
+  const [editScoreOpen, setEditScoreOpen] = useState(false);
+  const [editScoreSession, setEditScoreSession] = useState<GameSession | null>(null);
+  const [newScore, setNewScore] = useState("");
 
   // Winner emails & fulfillment toggle
   const [winnerEmails, setWinnerEmails] = useState<Record<string, string>>({});
@@ -399,6 +404,20 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
     setSubmitting(false);
     toast.success("Winner declared! Make sure to award their prize manually.");
     setDeclareOpen(false);
+    onRefetch?.();
+  };
+
+  const handleEditScore = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editScoreSession) return;
+    setSubmitting(true);
+    const scoreVal = parseInt(newScore) || 0;
+    const { error } = await supabase.from("game_sessions").update({ score: scoreVal }).eq("id", editScoreSession.id);
+    setSubmitting(false);
+    if (handleSupabaseError(error, "Update score")) return;
+    toast.success("Score updated successfully");
+    setEditScoreOpen(false);
+    setEditScoreSession(null);
     onRefetch?.();
   };
 
@@ -704,7 +723,19 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                                       </Badge>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                      {gs.score === 0 && gs.status === "ended" && (
+                                        <AlertTriangle className="h-3 w-3 text-yellow-500" title="Score is 0. Verify screenshot." />
+                                      )}
                                       <span className="font-arcade text-primary">{(gs.score ?? 0).toLocaleString()}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                                        title="Edit Score"
+                                        onClick={() => { setEditScoreSession(gs); setNewScore(gs.score?.toString() ?? "0"); setEditScoreOpen(true); }}
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </Button>
                                       <Button
                                         size="sm"
                                         variant="ghost"
@@ -999,6 +1030,36 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
             <Button type="submit" disabled={submitting} className="w-full bg-accent text-accent-foreground hover:bg-accent/80 neon-border-pink">
               {submitting ? "Declaring..." : "Confirm Winner"}
             </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Score Dialog */}
+      <Dialog open={editScoreOpen} onOpenChange={setEditScoreOpen}>
+        <DialogContent className="border-border/50 bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-arcade text-xs text-foreground">Edit Score</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Manually update the score for this game session.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditScore} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">New Score</Label>
+              <Input 
+                name="score" 
+                type="number" 
+                min="0"
+                required 
+                value={newScore}
+                onChange={(e) => setNewScore(e.target.value)}
+                className="border-border bg-secondary/50 text-foreground font-arcade" 
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setEditScoreOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={submitting} className="bg-primary text-primary-foreground hover:bg-primary/80">
+                {submitting ? "Saving..." : "Save Score"}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
