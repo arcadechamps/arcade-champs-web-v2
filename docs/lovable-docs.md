@@ -324,9 +324,9 @@ All tables have RLS enabled. General pattern:
 - Real-time countdown timer based on `allowed_duration_seconds`
 - **Scroll lock**: During gameplay, page scrolling is disabled to prevent accidental navigation
 - On timer expiry:
-  1. Captures canvas screenshot
-  2. Uploads via `upload-screenshot` edge function
-  3. Sends screenshot to n8n webhook for score extraction
+  1. Captures multiple canvas screenshots at different time intervals (T-15s, T-10s, and T-0s) to provide robust evidence
+  2. Uploads all screenshots via `upload-screenshot` edge function
+  3. Sends the primary screenshot to n8n webhook for score extraction
   4. Submits score to WASM anti-cheat for behavioral verdict
   5. Updates `game_sessions` with extracted score
   6. Inserts `anti_cheat_logs` with WASM verdict
@@ -713,6 +713,10 @@ See [Section 8.12](#812-network-error-handling).
 ---
 
 ## 14. Bug Fixes & Change Log
+
+### 2026-05-02: Multi-Screenshot Score Extraction
+- **Feature**: Improved the reliability of contest score reporting by capturing three screenshots at different time intervals (T-15s, T-10s, and T-0s).
+- **Details**: Provides administrators with multiple visual references to verify scores in the event of an automated capture failure, ensuring fairness and trust. Updated `upload-screenshot` edge function, `GamePlayer`, and `ContestPlay` components to support interval-based capturing.
 
 ### 2026-05-02: Keyboard Shortcuts Integration
 - **Feature**: Added global and contextual keyboard navigation via `react-hotkeys-hook`.
