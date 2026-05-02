@@ -10,9 +10,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { handleNetworkError, handleSupabaseError } from "@/lib/network-error-handler";
 import { useQueryClient } from "@tanstack/react-query";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import TablePagination, { usePagination } from "@/components/dashboard/TablePagination";
 import type { Wallet as WalletType, WalletTransaction } from "@/types/database";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
+import { useHotkeys } from "react-hotkeys-hook";
 
 const TOUR_STEPS: TourStep[] = [
   { targetSelector: '[data-tour="wallet-add"]', title: "Add Funds", description: "Top up your wallet via Stripe — fast, secure, and instant. You'll need a balance to enter contests!", position: "bottom" },
@@ -52,6 +54,16 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
 
   const { totalPages, totalItems, pageSize, getPage } = usePagination(transactions, 10);
   const paginatedTx = getPage(txPage);
+
+  useHotkeys('shift+d', (e) => {
+    e.preventDefault();
+    setDialogOpen(true);
+  }, { enableOnFormTags: false }, []);
+
+  useHotkeys('shift+w', (e) => {
+    e.preventDefault();
+    setWithdrawOpen(true);
+  }, { enableOnFormTags: false }, []);
 
   const handleAddFunds = async () => {
     const cents = Math.round(parseFloat(addAmount) * 100);
@@ -150,11 +162,22 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
           <div className="flex gap-2">
             {/* Withdraw Button */}
             <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="border-border text-muted-foreground hover:text-foreground gap-2" data-tour="wallet-withdraw">
-                  <ArrowUpCircle className="h-4 w-4" /> Withdraw
-                </Button>
-              </DialogTrigger>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="border-border text-muted-foreground hover:text-foreground gap-2" data-tour="wallet-withdraw">
+                          <ArrowUpCircle className="h-4 w-4" /> Withdraw
+                        </Button>
+                      </DialogTrigger>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Withdraw (Shift+W)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <DialogContent className="border-border/50 bg-card">
                 <DialogHeader>
                   <DialogTitle className="font-arcade text-xs text-foreground">Request Withdrawal</DialogTitle>
@@ -240,11 +263,22 @@ const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
 
             {/* Add Funds Button */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2" data-tour="wallet-add">
-                  <Plus className="h-4 w-4" /> Add Funds
-                </Button>
-              </DialogTrigger>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <DialogTrigger asChild>
+                        <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2" data-tour="wallet-add">
+                          <Plus className="h-4 w-4" /> Add Funds
+                        </Button>
+                      </DialogTrigger>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Add Funds (Shift+D)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <DialogContent className="border-border/50 bg-card">
                 <DialogHeader>
                   <DialogTitle className="font-arcade text-xs text-foreground">Add Funds via Stripe</DialogTitle>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Users, DollarSign, CheckCircle, XCircle, Clock, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
@@ -11,8 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import TablePagination, { usePagination } from "@/components/dashboard/TablePagination";
 import type { Profile, Wallet, WalletTransaction } from "@/types/database";
@@ -56,6 +58,13 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
   const [sortKey, setSortKey] = useState<"player" | "username" | "balance" | "joined" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [userEmails, setUserEmails] = useState<Record<string, string>>({});
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useHotkeys('/', (e) => {
+    e.preventDefault();
+    searchInputRef.current?.focus();
+  }, { enableOnFormTags: false }, []);
 
   useEffect(() => {
     if (profiles.length > 0) {
@@ -303,13 +312,25 @@ const AdminPlayerList = ({ profiles, wallets, transactions = [], onRefetch }: Ad
       </Card>
 
       {/* Player List */}
-      <Input
-        placeholder="Search players..."
-        value={search}
-        onChange={e => { setSearch(e.target.value); setPlayerPage(1); }}
-        className="max-w-sm border-border bg-secondary/50 text-foreground"
-        data-tour="ap-search"
-      />
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Input
+                ref={searchInputRef}
+                placeholder="Search players... (/)"
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPlayerPage(1); }}
+                className="max-w-sm border-border bg-secondary/50 text-foreground"
+                data-tour="ap-search"
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Focus Search (/)</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       {(() => {
         const { totalPages, totalItems, pageSize, getPage } = usePagination(sorted, 5);

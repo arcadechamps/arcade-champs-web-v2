@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { Plus, Gamepad2, Trash2, Pencil, Play } from "lucide-react";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { handleSupabaseError } from "@/lib/network-error-handler";
@@ -28,6 +30,11 @@ const AdminGameManager = ({ games, onRefetch }: AdminGameManagerProps) => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editGame, setEditGame] = useState<Game | null>(null);
 
+  useHotkeys('shift+n', (e) => {
+    e.preventDefault();
+    setCreateOpen(true);
+  }, { enableOnFormTags: false }, []);
+
   const handleToggleActive = async (game: Game) => {
     const { error } = await supabase.from("games").update({ is_active: !game.is_active }).eq("id", game.id);
     if (handleSupabaseError(error, "Game", { onRetry: () => handleToggleActive(game) })) return;
@@ -43,14 +50,23 @@ const AdminGameManager = ({ games, onRefetch }: AdminGameManagerProps) => {
   return (
     <div className="space-y-6">
       {/* Action buttons */}
-      <Button
-        size="sm"
-        className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2"
-        onClick={() => setCreateOpen(true)}
-        data-tour="ag-add"
-      >
-        <Plus className="h-4 w-4" /> Add Game
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2"
+              onClick={() => setCreateOpen(true)}
+              data-tour="ag-add"
+            >
+              <Plus className="h-4 w-4" /> Add Game
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Add Game (Shift+N)</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       {/* Create dialog */}
       <GameFormDialog

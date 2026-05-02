@@ -13,7 +13,8 @@ import {
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useHotkeys } from "react-hotkeys-hook";
 import logo from "@/assets/logo.png";
 import {
   Sidebar,
@@ -83,6 +84,20 @@ const DashboardSidebar = ({ isAdmin, activeSection }: DashboardSidebarProps) => 
   // Resolve the "index" key name for comparison
   const indexKey = isAdmin ? "overview" : "home";
 
+  const navigate = useNavigate();
+
+  useHotkeys('shift+1', () => navigate(buildPath(isAdmin, items[0].key)), { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+2', () => navigate(buildPath(isAdmin, items[1].key)), { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+3', () => navigate(buildPath(isAdmin, items[2].key)), { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+4', () => navigate(buildPath(isAdmin, items[3].key)), { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+5', () => navigate(buildPath(isAdmin, items[4].key)), { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+6', () => { if(items[5]) navigate(buildPath(isAdmin, items[5].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+7', () => { if(items[6]) navigate(buildPath(isAdmin, items[6].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+8', () => { if(items[7]) navigate(buildPath(isAdmin, items[7].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+9', () => { if(items[8]) navigate(buildPath(isAdmin, items[8].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
+
+  useHotkeys('shift+b', () => toggleSidebar(), { preventDefault: true }, [toggleSidebar]);
+
   const handleClick = () => {
     if (isMobile) setOpenMobile(false);
   };
@@ -110,14 +125,14 @@ const DashboardSidebar = ({ isAdmin, activeSection }: DashboardSidebarProps) => 
           <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const isActive = activeSection === item.key;
                 return (
                   <SidebarMenuItem key={item.key}>
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      tooltip={item.label}
+                      tooltip={`${item.label} (Shift+${index + 1})`}
                       data-tour={`nav-${item.key}`}
                       className={
                         isActive
@@ -143,10 +158,11 @@ const DashboardSidebar = ({ isAdmin, activeSection }: DashboardSidebarProps) => 
           variant="ghost"
           size="sm"
           onClick={toggleSidebar}
+          tooltip="Collapse (Shift+B)"
           className="w-full justify-center text-muted-foreground hover:text-foreground"
         >
           {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          {!collapsed && <span className="ml-2 text-xs">Collapse</span>}
+          {!collapsed && <span className="ml-2 text-xs">Collapse (Shift+B)</span>}
         </Button>
       </SidebarFooter>
     </Sidebar>

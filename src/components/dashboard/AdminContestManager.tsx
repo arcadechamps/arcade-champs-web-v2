@@ -10,8 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { handleSupabaseError } from "@/lib/network-error-handler";
 import GameplayMediaViewer from "@/components/dashboard/GameplayMediaViewer";
@@ -85,6 +87,11 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
   const [submitting, setSubmitting] = useState(false);
   const [selectedGameIds, setSelectedGameIds] = useState<string[]>([]);
   const [contestPage, setContestPage] = useState(1);
+
+  useHotkeys('shift+n', (e) => {
+    e.preventDefault();
+    setCreateOpen(true);
+  }, { enableOnFormTags: false }, []);
 
   // Prize image state
   const [createPrizeFile, setCreatePrizeFile] = useState<File | null>(null);
@@ -452,11 +459,22 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
     <div className="space-y-6">
       <div className="flex gap-3">
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2" data-tour="ac-create">
-              <Plus className="h-4 w-4" /> Create Contest
-            </Button>
-          </DialogTrigger>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2" data-tour="ac-create">
+                      <Plus className="h-4 w-4" /> Create Contest
+                    </Button>
+                  </DialogTrigger>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Create Contest (Shift+N)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <DialogContent className="border-border/50 bg-card max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-arcade text-xs text-foreground">Create Contest</DialogTitle>

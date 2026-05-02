@@ -151,6 +151,19 @@ The app uses Supabase for authentication with protected routes. The `ProtectedRo
 - **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
 - **Dark Mode**: Theme switching support
 
+## ⌨️ Keyboard Shortcuts
+
+Arcade Legends supports keyboard shortcuts for faster navigation and actions in the dashboard. Shortcuts use `Shift` instead of `Ctrl` to prevent browser conflicts.
+
+| Shortcut | Action |
+|----------|--------|
+| `Shift` + `1`-`9` | Navigate between dashboard tabs |
+| `Shift` + `B` | Toggle sidebar collapse |
+| `Shift` + `N` | Open "Create Contest" / "Add Game" dialogs (Admins) |
+| `/` | Focus search inputs (e.g., Player Directory) |
+| `Shift` + `D` | Open "Add Funds" deposit dialog |
+| `Shift` + `W` | Open "Withdraw" dialog |
+
 ## 📝 Development Guidelines
 
 - Use TypeScript for type safety

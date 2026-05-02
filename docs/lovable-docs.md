@@ -618,6 +618,22 @@ interface KeyMapping {
 - `FreePlay.tsx` and `ContestPlay.tsx` pass `game.keymapping` (cast as `DbKeymapping`) to `KeymapOverlay`
 - The overlay calls `getKeyMappingWithDb(gameSlug, core, dbKeymapping)` to merge all layers
 
+### 8.19 Keyboard Shortcuts
+
+The platform uses `react-hotkeys-hook` to provide global and contextual keyboard shortcuts, improving navigation and workflow efficiency. Modifiers are `Shift` to prevent conflicts with native browser shortcuts (like `Ctrl+W` or `Ctrl+D`).
+
+| Scope | Action | Shortcut |
+|-------|--------|----------|
+| **Global Navigation** | Jump to Sidebar Tabs 1-9 | `Shift+1` - `Shift+9` |
+| **Global Navigation** | Toggle Sidebar Collapse | `Shift+B` |
+| **Admin Contests** | Open "Create Contest" | `Shift+N` |
+| **Admin Games** | Open "Add Game" | `Shift+N` |
+| **Admin Players** | Focus Search Input | `/` |
+| **User Wallet** | Open "Add Funds" (Deposit) | `Shift+D` |
+| **User Wallet** | Open "Withdraw" | `Shift+W` |
+
+Shortcuts are disabled by default when the user is typing inside form elements (`input`, `textarea`, `select`), except when explicitly overridden.
+
 ---
 
 ## 9. Routing
@@ -697,6 +713,11 @@ See [Section 8.12](#812-network-error-handling).
 ---
 
 ## 14. Bug Fixes & Change Log
+
+### 2026-05-02: Keyboard Shortcuts Integration
+- **Feature**: Added global and contextual keyboard navigation via `react-hotkeys-hook`.
+- **Shortcuts**: `Shift+1`..`9` (tab nav), `Shift+B` (sidebar), `Shift+N` (create contest/game), `/` (search players), `Shift+D` (deposit), `Shift+W` (withdraw).
+- **Conflict Prevention**: Switched from `Ctrl` modifier to `Shift` modifier to prevent conflicts with browser hotkeys like closing tabs (`Ctrl+W`) or bookmarking (`Ctrl+D`).
 
 ### 2026-04-13: Space Cadet Pinball Fullscreen Features & Fixes
 
