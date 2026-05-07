@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { fetchAndCachePreview, getCachedPreview } from "@/lib/previewCache";
 import Layout from "@/components/Layout";
 import { PageMeta } from "@/components/PageMeta";
 import { Trophy, Clock, Shield, Users, Loader2, DollarSign, Gamepad2, Play, ChevronDown, ChevronUp, Ban, Crown, Gift, Medal, Award, Filter, ArrowDownUp } from "lucide-react";
@@ -57,78 +58,134 @@ function ContestCardComponent({
 }: any) {
   const [isHovered, setIsHovered] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [mediaLoaded, setMediaLoaded] = useState(false);
 
+  // Derive URL first — needed by the blobUrl lazy initialiser below.
+  const activeGame = cGames[activeIndex];
+  const actualPreviewPath = activeGame?.preview_enabled && activeGame?.preview_path ? activeGame.preview_path : null;
+  const isVideo = actualPreviewPath ? (actualPreviewPath.endsWith('.mp4') || actualPreviewPath.endsWith('.webm')) : false;
+
+  // Build the remote URL for whatever should be shown: video preview, fallback to thumbnail, then prize image
+  const displayPath = actualPreviewPath || activeGame?.thumbnail_path;
+  const remotePreviewUrl = displayPath ? `${STORAGE_BASE}/game-thumbnails/${displayPath}` : null;
+
+  // blobUrl: undefined = not yet fetched, null = loading, string = ready
+  // Seed from sessionStorage-backed cache so restored clips show instantly.
+  const [blobUrl, setBlobUrl] = useState<string | null | undefined>(
+    () => (remotePreviewUrl ? getCachedPreview(remotePreviewUrl) ?? undefined : undefined)
+  );
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Rotate active game every 10s while hovered
   useEffect(() => {
-    if (!isHovered || cGames.length === 0) return;
+    if (!isHovered || cGames.length <= 1) return;
     const interval = setInterval(() => {
-      setActiveIndex(prev => (prev + 1) % cGames.length);
-      setMediaLoaded(false);
+      setActiveIndex(prev => {
+        const nextIndex = (prev + 1) % cGames.length;
+        const nextGame = cGames[nextIndex];
+        const nextPath = (nextGame?.preview_enabled && nextGame?.preview_path) ? nextGame.preview_path : nextGame?.thumbnail_path;
+        const nextUrl = nextPath ? `${STORAGE_BASE}/game-thumbnails/${nextPath}` : null;
+        // Use cached blob instantly; fall back to undefined to trigger a fetch.
+        setBlobUrl(nextUrl ? (getCachedPreview(nextUrl) ?? undefined) : undefined);
+        return nextIndex;
+      });
     }, 10000);
     return () => clearInterval(interval);
   }, [isHovered, cGames.length]);
 
-  const activeGame = cGames[activeIndex];
-  const actualPreviewPath = activeGame?.preview_enabled && activeGame?.preview_path ? activeGame.preview_path : null;
-  const displayPath = actualPreviewPath || activeGame?.thumbnail_path;
-  const previewUrl = displayPath ? `${STORAGE_BASE}/game-thumbnails/${displayPath}` : null;
-  const isVideo = actualPreviewPath ? (actualPreviewPath.endsWith('.mp4') || actualPreviewPath.endsWith('.webm')) : false;
+  // Reset on hover-start so the first game always shows
+  useEffect(() => {
+    if (isHovered) {
+      setActiveIndex(0);
+      // Seed from cache; undefined triggers a fresh fetch if not cached.
+      setBlobUrl(remotePreviewUrl ? (getCachedPreview(remotePreviewUrl) ?? undefined) : undefined);
+    }
+  }, [isHovered]);
+
+  // Fetch (or retrieve from shared cache) the preview for the active game
+  useEffect(() => {
+    if (!isHovered || !remotePreviewUrl || blobUrl !== undefined) return;
+
+    setBlobUrl(null); // mark loading
+    fetchAndCachePreview(remotePreviewUrl).then(url => {
+      setBlobUrl(url);
+    });
+  }, [isHovered, remotePreviewUrl, blobUrl]);
+
+  // Play/pause video without remounting it
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isVideo) return;
+    if (isHovered && blobUrl) {
+      video.currentTime = 0;
+      video.play().catch(() => { });
+    } else {
+      video.pause();
+    }
+  }, [isHovered, blobUrl, isVideo]);
+
+  const showPreview = isHovered && !!blobUrl;
+  const isLoading = isHovered && remotePreviewUrl && blobUrl === null;
 
   return (
     <ContestCardWrapper
       index={idx}
       tourProps={idx === 0 ? { "data-tour": "contest-card" } : {}}
-      onMouseEnter={() => { setIsHovered(true); setActiveIndex(0); setMediaLoaded(false); }}
-      onMouseLeave={() => { setIsHovered(false); setMediaLoaded(false); }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative h-64 w-full bg-[#0F172A] overflow-hidden">
-        {/* Image / Preview */}
-        {isHovered && cGames.length > 0 && previewUrl ? (
-          <>
-            {!mediaLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[#0F172A] z-10">
-                <Loader2 className="h-8 w-8 text-neon-pink animate-spin" />
-              </div>
-            )}
-            {isVideo ? (
-              <video
-                key={previewUrl}
-                src={previewUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className={`w-full h-full object-cover opacity-80 transition-opacity duration-500 ${mediaLoaded ? 'opacity-80' : 'opacity-0'}`}
-                onCanPlay={() => setMediaLoaded(true)}
-              />
-            ) : (
-              <img
-                key={previewUrl}
-                src={previewUrl}
-                alt="preview"
-                className={`w-full h-full object-cover opacity-80 transition-opacity duration-500 ${mediaLoaded ? 'opacity-80' : 'opacity-0'}`}
-                onLoad={() => setMediaLoaded(true)}
-              />
-            )}
-            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-20 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
-              <Gamepad2 className="h-3 w-3 text-neon-pink" />
-              <span className="text-[10px] text-white font-bold">{activeGame.title}</span>
-            </div>
-          </>
-        ) : (c as any).prize_image_path ? (
+
+        {/* Loading spinner */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0F172A] z-10">
+            <Loader2 className="h-8 w-8 text-neon-pink animate-spin" />
+          </div>
+        )}
+
+        {/* Static fallback: prize image or mystery-prize placeholder — always rendered */}
+        {(c as any).prize_image_path ? (
           <img
             src={`${STORAGE_BASE}/game-thumbnails/${(c as any).prize_image_path}`}
             alt={`${c.title} prize`}
-            className="w-full h-full object-cover opacity-80"
+            className={`w-full h-full object-cover transition-opacity duration-500 ${showPreview ? 'opacity-0' : 'opacity-80'}`}
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full bg-[#1A233A] flex flex-col items-center justify-center relative">
+          <div className={`w-full h-full bg-[#1A233A] flex flex-col items-center justify-center relative transition-opacity duration-500 ${showPreview ? 'opacity-0' : 'opacity-100'}`}>
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-neon-pink/10" />
             <div className="h-16 w-16 rounded-full bg-black/30 flex items-center justify-center mb-2 shadow-lg border border-white/5 relative z-10">
               <Gift className="h-8 w-8 text-primary/60" />
             </div>
             <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider relative z-10">Mystery Prize</span>
+          </div>
+        )}
+
+        {/* Video preview — kept mounted after first fetch to avoid re-downloading */}
+        {isVideo && blobUrl && (
+          <video
+            ref={videoRef}
+            src={blobUrl}
+            loop
+            muted
+            playsInline
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showPreview ? 'opacity-80' : 'opacity-0 pointer-events-none'}`}
+          />
+        )}
+
+        {/* Image/GIF preview — same DOM-persistence pattern */}
+        {!isVideo && blobUrl && (
+          <img
+            src={blobUrl}
+            alt="preview"
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showPreview ? 'opacity-80' : 'opacity-0 pointer-events-none'}`}
+          />
+        )}
+
+        {/* Active game label */}
+        {showPreview && activeGame && (
+          <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-20 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
+            <Gamepad2 className="h-3 w-3 text-neon-pink" />
+            <span className="text-[10px] text-white font-bold">{activeGame.title}</span>
           </div>
         )}
 
@@ -167,7 +224,7 @@ function ContestCardComponent({
         )}
       </div>
 
-      <div className="p-5 flex flex-col gap-5 bg-[#172033]">
+      <div className="p-5 flex flex-col gap-5">
         {/* Title & Description */}
         <div>
           <h3 className="mb-2 text-xl font-bold text-white leading-tight capitalize">{c.title}</h3>
@@ -725,8 +782,8 @@ const Contest = () => {
                         handlePlayContestGame(contestInfo, game.slug);
                       }}
                       className={`group relative flex flex-col rounded-xl border transition-all duration-300 overflow-hidden text-left bg-[#172033] focus:outline-none focus:ring-2 focus:ring-neon-pink/50 ${isBanned
-                          ? "border-destructive/30 opacity-70 cursor-not-allowed"
-                          : "border-[#202B45] hover:border-neon-pink/50 hover:shadow-[0_0_20px_rgba(255,42,133,0.15)] hover:-translate-y-1"
+                        ? "border-destructive/30 opacity-70 cursor-not-allowed"
+                        : "border-[#202B45] hover:border-neon-pink/50 hover:shadow-[0_0_20px_rgba(255,42,133,0.15)] hover:-translate-y-1"
                         }`}
                     >
                       {/* Image / Header area */}

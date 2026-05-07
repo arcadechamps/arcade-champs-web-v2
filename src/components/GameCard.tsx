@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Play, Trophy, Gamepad2, Users, Crown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { fetchAndCachePreview, getCachedPreview } from "@/lib/previewCache";
 
 const STORAGE_BASE = "https://vppcnlzbpovswfjbdmpm.supabase.co/storage/v1/object/public";
 
@@ -33,68 +34,126 @@ const GameCard = ({
   contestSlug,
   onContestClick,
 }: GameCardProps) => {
+  // Derive these first — used in the useState lazy initialiser below.
+  const remotePreviewUrl =
+    previewEnabled && previewPath
+      ? `${STORAGE_BASE}/game-thumbnails/${previewPath}`
+      : null;
+
+  const isVideo =
+    previewPath?.endsWith(".mp4") || previewPath?.endsWith(".webm");
+
   const [isHovered, setIsHovered] = useState(false);
-  const [mediaLoaded, setMediaLoaded] = useState(false);
   const [hasFinishedPlaying, setHasFinishedPlaying] = useState(false);
 
-  const previewUrl = previewEnabled && previewPath ? `${STORAGE_BASE}/game-thumbnails/${previewPath}` : null;
-  const isVideo = previewPath?.endsWith('.mp4') || previewPath?.endsWith('.webm');
+  // Blob URL state — undefined = not fetched, null = loading, string = ready
+  // Seed from sessionStorage-backed cache so restored clips show instantly.
+  const [blobUrl, setBlobUrl] = useState<string | null | undefined>(
+    () => (remotePreviewUrl ? getCachedPreview(remotePreviewUrl) ?? undefined : undefined)
+  );
+  const [fetchFailed, setFetchFailed] = useState(false);
 
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // On first hover, kick off a single fetch and cache the blob URL.
+  // If blobUrl is already set (restored from sessionStorage), skip the fetch.
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    // GIFs don't have an onEnded event, so we default to a 10-second playback limit per the original spec
-    if (isHovered && !isVideo && previewUrl && !hasFinishedPlaying) {
-      timer = setTimeout(() => {
-        setHasFinishedPlaying(true);
-      }, 10000);
+    if (!isHovered || !remotePreviewUrl || blobUrl !== undefined) return;
+
+    // Check cache one more time in case another card fetched it after mount.
+    const cached = getCachedPreview(remotePreviewUrl);
+    if (cached) {
+      setBlobUrl(cached);
+      return;
     }
+
+    setBlobUrl(null); // mark as loading
+
+    fetchAndCachePreview(remotePreviewUrl).then((url) => {
+      setBlobUrl(url);
+    }).catch(() => {
+      setFetchFailed(true);
+      setBlobUrl(remotePreviewUrl); // graceful fallback
+    });
+  }, [isHovered, remotePreviewUrl, blobUrl]);
+
+  // Play/pause the video element as hover state changes, without re-mounting it.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isVideo) return;
+
+    if (isHovered && blobUrl && !hasFinishedPlaying) {
+      video.currentTime = 0;
+      video.play().catch(() => {/* autoplay blocked — silent fail */ });
+    } else {
+      video.pause();
+    }
+  }, [isHovered, blobUrl, hasFinishedPlaying, isVideo]);
+
+  // GIF fallback: 10-second timeout since GIFs have no onEnded event
+  useEffect(() => {
+    if (!isHovered || isVideo || !remotePreviewUrl || hasFinishedPlaying) return;
+    const timer = setTimeout(() => setHasFinishedPlaying(true), 10000);
     return () => clearTimeout(timer);
-  }, [isHovered, isVideo, previewUrl, hasFinishedPlaying]);
+  }, [isHovered, isVideo, remotePreviewUrl, hasFinishedPlaying]);
+
+  const showPreview = isHovered && blobUrl && !hasFinishedPlaying;
+  const isLoading = isHovered && remotePreviewUrl && blobUrl === null;
 
   return (
     <div
       className="group overflow-hidden rounded-lg border border-border/50 bg-card transition-all duration-300 hover:neon-border-pink hover:-translate-y-1 flex flex-col h-full"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => { setIsHovered(false); setMediaLoaded(false); setHasFinishedPlaying(false); }}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        setHasFinishedPlaying(false);
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setHasFinishedPlaying(false);
+      }}
     >
       <div className="relative h-64 w-full bg-[#0F172A] overflow-hidden shrink-0">
-        {isHovered && previewUrl && !hasFinishedPlaying ? (
-          <>
-            {!mediaLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[#0F172A] z-10">
-                <Loader2 className="h-8 w-8 text-neon-pink animate-spin" />
-              </div>
-            )}
-            {isVideo ? (
-              <video
-                src={previewUrl}
-                autoPlay
-                muted
-                playsInline
-                onEnded={() => setHasFinishedPlaying(true)}
-                className={`h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 ${mediaLoaded ? 'visible' : 'invisible'}`}
-                onCanPlay={() => setMediaLoaded(true)}
-              />
-            ) : (
-              <img
-                src={previewUrl}
-                alt={`${title} preview`}
-                className={`h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 ${mediaLoaded ? 'visible' : 'invisible'}`}
-                onLoad={() => setMediaLoaded(true)}
-              />
-            )}
-          </>
-        ) : thumbnailPath ? (
+
+        {/* Loading spinner */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0F172A] z-10">
+            <Loader2 className="h-8 w-8 text-neon-pink animate-spin" />
+          </div>
+        )}
+
+        {/* Static thumbnail — always rendered, hidden when preview is active */}
+        {thumbnailPath ? (
           <img
             src={thumbUrl(thumbnailPath)}
             alt={title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80"
+            className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-105  ${showPreview ? "opacity-0" : "opacity-80"}`}
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-neon-pink/20 flex flex-col items-center justify-center">
+          <div className={`w-full h-full bg-gradient-to-br from-primary/20 to-neon-pink/20 flex flex-col items-center justify-center transition-opacity duration-500 ${showPreview ? "opacity-0" : "opacity-100"}`}>
             <Gamepad2 className="h-12 w-12 text-primary/40 mb-2 transition-transform duration-300 group-hover:scale-110" />
           </div>
+        )}
+
+        {/* Video preview — kept mounted after first load to avoid re-fetching */}
+        {isVideo && blobUrl && (
+          <video
+            ref={videoRef}
+            src={blobUrl}
+            muted
+            playsInline
+            onEnded={() => setHasFinishedPlaying(true)}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 group-hover:scale-105 ${showPreview ? "opacity-80" : "opacity-0 pointer-events-none"}`}
+          />
+        )}
+
+        {/* GIF / image preview */}
+        {!isVideo && blobUrl && (
+          <img
+            src={blobUrl}
+            alt={`${title} preview`}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 group-hover:scale-105 ${showPreview ? "opacity-80" : "opacity-0 pointer-events-none"}`}
+          />
         )}
 
         {/* Top Badges */}
