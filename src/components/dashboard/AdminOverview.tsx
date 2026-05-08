@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Users, Trophy, Zap, DollarSign, AlertTriangle, ArrowRight, TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown, Download, BellRing } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Users, Trophy, Zap, DollarSign, AlertTriangle, ArrowRight, TrendingUp, ArrowDownCircle, ArrowUpCircle, Crown, Download, BellRing, Globe } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Profile, Contest, GameSession, WalletTransaction, AntiCheatLog, Wallet, ContestWinner } from "@/types/database";
@@ -26,18 +27,15 @@ interface AdminOverviewProps {
   antiCheatLogs?: AntiCheatLog[];
   wallets?: Wallet[];
   winners?: ContestWinner[];
-  onNavigate?: (section: string) => void;
+
 }
 
-const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCheatLogs = [], wallets = [], winners = [], onNavigate }: AdminOverviewProps) => {
+const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCheatLogs = [], wallets = [], winners = [] }: AdminOverviewProps) => {
+  const navigate = useNavigate();
   const totalPlayers = profiles.length;
   const activeContests = contests.filter(c => c.status === "active").length;
 
   const succeededTx = transactions.filter(t => t.status === "succeeded");
-  const totalTopups = succeededTx.filter(t => t.type === "topup").reduce((s, t) => s + t.amount_cents, 0);
-  const totalFees = succeededTx.filter(t => t.type === "session_fee").reduce((s, t) => s + t.amount_cents, 0);
-  const totalPayouts = succeededTx.filter(t => t.type === "payout").reduce((s, t) => s + t.amount_cents, 0);
-  const netRevenue = totalFees - totalPayouts;
 
   const flaggedLogs = antiCheatLogs.filter(l => l.status === "suspected" || l.status === "confirmed");
   const suspectedCount = antiCheatLogs.filter(l => l.status === "suspected").length;
@@ -48,7 +46,9 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   const pendingWithdrawals = transactions.filter(t => t.type === "payout" && t.status === "pending");
   const pendingWithdrawalTotal = pendingWithdrawals.reduce((s, t) => s + Math.abs(t.amount_cents), 0);
 
-  const [timeRange, setTimeRange] = useState<"7d" | "4w" | "6m">("4w");
+  const zeroScoreSessions = sessions.filter(s => s.score === 0 && s.status === "ended");
+
+  const [timeRange, setTimeRange] = useState<"7d" | "4w" | "3m" | "6m" | "all">("4w");
 
   const getChartData = () => {
     let buckets: { name: string; timestamp: number; Topups: number; Fees: number; Payouts: number; Net: number }[] = [];
@@ -68,6 +68,13 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
         const weekStart = startOfWeek(d, { weekStartsOn: 1 });
         return { name: format(weekStart, "MMM d"), timestamp: weekStart.getTime(), Topups: 0, Fees: 0, Payouts: 0, Net: 0 };
       });
+    } else if (timeRange === "3m") {
+      const MONTHS_TO_SHOW = 3;
+      buckets = Array.from({ length: MONTHS_TO_SHOW }).map((_, i) => {
+        const d = subMonths(now, MONTHS_TO_SHOW - 1 - i);
+        const monthStart = startOfMonth(d);
+        return { name: format(monthStart, "MMM yy"), timestamp: monthStart.getTime(), Topups: 0, Fees: 0, Payouts: 0, Net: 0 };
+      });
     } else if (timeRange === "6m") {
       const MONTHS_TO_SHOW = 6;
       buckets = Array.from({ length: MONTHS_TO_SHOW }).map((_, i) => {
@@ -75,6 +82,18 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
         const monthStart = startOfMonth(d);
         return { name: format(monthStart, "MMM yy"), timestamp: monthStart.getTime(), Topups: 0, Fees: 0, Payouts: 0, Net: 0 };
       });
+    } else if (timeRange === "all") {
+      // Find earliest transaction date, fall back to 12 months ago
+      const earliest = succeededTx.length > 0
+        ? new Date(Math.min(...succeededTx.map(tx => new Date(tx.created_at).getTime())))
+        : subMonths(now, 12);
+      const firstMonth = startOfMonth(earliest);
+      const lastMonth = startOfMonth(now);
+      let cursor = firstMonth;
+      while (cursor <= lastMonth) {
+        buckets.push({ name: format(cursor, "MMM yy"), timestamp: cursor.getTime(), Topups: 0, Fees: 0, Payouts: 0, Net: 0 });
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      }
     }
 
     succeededTx.forEach(tx => {
@@ -82,7 +101,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
       let txBucketTime = 0;
       if (timeRange === "7d") txBucketTime = startOfDay(txDate).getTime();
       else if (timeRange === "4w") txBucketTime = startOfWeek(txDate, { weekStartsOn: 1 }).getTime();
-      else if (timeRange === "6m") txBucketTime = startOfMonth(txDate).getTime();
+      else txBucketTime = startOfMonth(txDate).getTime();
 
       const bucket = buckets.find(w => w.timestamp === txBucketTime);
       if (bucket) {
@@ -102,6 +121,12 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
 
   const chartData = getChartData();
 
+  // Derive summary totals from the time-filtered chart buckets
+  const totalTopups = chartData.reduce((s, b) => s + b.Topups, 0);
+  const totalFees = chartData.reduce((s, b) => s + b.Fees, 0);
+  const totalPayouts = chartData.reduce((s, b) => s + b.Payouts, 0);
+  const netRevenue = totalFees - totalPayouts;
+
   const handleExportChartData = () => {
     if (chartData.length === 0) return;
     exportToCSV(`revenue-summary-${timeRange}`, chartData, [
@@ -115,9 +140,9 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   };
 
   const stats = [
+    { label: "Platform Balance", value: `$${(totalBalance / 100).toFixed(2)}`, icon: Globe, color: "text-neon-green" },
     { label: "Total Players", value: totalPlayers, icon: Users, color: "text-primary" },
-    { label: "Total Contests", value: contests.length, icon: Trophy, color: "text-neon-pink" },
-    { label: "Active Contests", value: activeContests, icon: Zap, color: "text-neon-green" },
+    { label: "Active Contests", value: activeContests, icon: Zap, color: "text-neon-pink" },
     { label: "Total Sessions", value: sessions.length, icon: DollarSign, color: "text-accent" },
   ];
 
@@ -142,9 +167,10 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   }
 
   for (const tx of transactions) {
+    const isCredit = tx.type === "topup" || (tx.type === "admin_adjust" && tx.amount_cents > 0);
     recentActivity.push({
       id: `tx-${tx.id}`, type: "transaction", label: tx.type.replace("_", " "),
-      detail: `$${(tx.amount_cents / 100).toFixed(2)}`, time: tx.created_at,
+      detail: `${isCredit ? "+" : "-"}$${(Math.abs(tx.amount_cents) / 100).toFixed(2)}`, time: tx.created_at,
       color: tx.type === "topup" ? "text-neon-green" : tx.type === "session_fee" ? "text-accent" : "text-primary",
     });
   }
@@ -160,7 +186,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   }
 
   recentActivity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-  
+
   const [activityPage, setActivityPage] = useState(1);
   const { totalPages, totalItems, pageSize, getPage } = usePagination(recentActivity, 8);
   const paginatedActivity = getPage(activityPage);
@@ -186,9 +212,35 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
           <Button
             size="sm"
             className="bg-accent text-accent-foreground hover:bg-accent/80 gap-2 shrink-0"
-            onClick={() => onNavigate?.("players")}
+            onClick={() => navigate("/dashboard/admin/players")}
           >
             Review Withdrawals <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Zero Score Verification Notification */}
+      {zeroScoreSessions.length > 0 && (
+        <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/20">
+              <AlertTriangle className="h-5 w-5 text-yellow-500 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {zeroScoreSessions.length} session{zeroScoreSessions.length !== 1 ? "s" : ""} with a score of 0
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Verify screenshots and manually edit scores if needed.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="bg-yellow-500 text-yellow-950 hover:bg-yellow-500/80 gap-2 shrink-0"
+            onClick={() => navigate("/dashboard/admin/contests")}
+          >
+            Go to Contests <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
       )}
@@ -221,12 +273,14 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
               <div className="flex bg-secondary/50 rounded-md p-0.5 sm:p-1">
                 <button onClick={() => setTimeRange("7d")} className={`px-1.5 sm:px-2 py-1 text-[10px] rounded ${timeRange === "7d" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>7D</button>
                 <button onClick={() => setTimeRange("4w")} className={`px-1.5 sm:px-2 py-1 text-[10px] rounded ${timeRange === "4w" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>4W</button>
+                <button onClick={() => setTimeRange("3m")} className={`px-1.5 sm:px-2 py-1 text-[10px] rounded ${timeRange === "3m" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>3M</button>
                 <button onClick={() => setTimeRange("6m")} className={`px-1.5 sm:px-2 py-1 text-[10px] rounded ${timeRange === "6m" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>6M</button>
+                <button onClick={() => setTimeRange("all")} className={`px-1.5 sm:px-2 py-1 text-[10px] rounded ${timeRange === "all" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>All</button>
               </div>
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Export CSV" onClick={handleExportChartData}>
                 <Download className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] sm:text-xs text-primary hover:text-black hidden sm:flex" onClick={() => onNavigate?.("sessions")}>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] sm:text-xs text-primary hover:text-black hidden sm:flex" onClick={() => navigate("/dashboard/admin/sessions")}>
                 Ledger <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
             </div>
@@ -235,20 +289,20 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
             <div className="grid grid-cols-4 gap-2">
               <div className="rounded-lg bg-secondary/30 p-2 lg:p-3">
                 <span className="text-[10px] text-muted-foreground block mb-1">Top-ups</span>
-                <p className="font-arcade text-xs text-neon-green truncate">${(totalTopups / 100).toFixed(2)}</p>
+                <p className="font-arcade text-xs text-neon-green truncate">${totalTopups.toFixed(2)}</p>
               </div>
               <div className="rounded-lg bg-secondary/30 p-2 lg:p-3">
                 <span className="text-[10px] text-muted-foreground block mb-1">Fees</span>
-                <p className="font-arcade text-xs text-accent truncate">${(totalFees / 100).toFixed(2)}</p>
+                <p className="font-arcade text-xs text-accent truncate">${totalFees.toFixed(2)}</p>
               </div>
               <div className="rounded-lg bg-secondary/30 p-2 lg:p-3">
                 <span className="text-[10px] text-muted-foreground block mb-1">Payouts</span>
-                <p className="font-arcade text-xs text-primary truncate">${(totalPayouts / 100).toFixed(2)}</p>
+                <p className="font-arcade text-xs text-primary truncate">${totalPayouts.toFixed(2)}</p>
               </div>
               <div className="rounded-lg bg-secondary/30 p-2 lg:p-3">
                 <span className="text-[10px] text-muted-foreground block mb-1">Net Rev</span>
                 <p className={`font-arcade text-xs truncate ${netRevenue >= 0 ? "text-neon-green" : "text-destructive"}`}>
-                  ${(netRevenue / 100).toFixed(2)}
+                  ${netRevenue.toFixed(2)}
                 </p>
               </div>
             </div>
@@ -259,7 +313,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
                   <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontSize: "12px", color: "hsl(var(--foreground))" }}
                     itemStyle={{ fontSize: "12px" }}
                   />
@@ -270,11 +324,6 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
-
-            <div className="flex items-center justify-between text-xs border-t border-border/30 pt-3 mt-4">
-              <span className="text-muted-foreground">Platform Balance (all wallets)</span>
-              <span className="text-foreground font-medium">${(totalBalance / 100).toFixed(2)}</span>
-            </div>
           </CardContent>
         </Card>
 
@@ -284,7 +333,7 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
             <CardTitle className="font-arcade text-[10px] text-foreground flex items-center gap-2">
               <AlertTriangle className={`h-4 w-4 ${flaggedLogs.length > 0 ? "text-destructive" : "text-muted-foreground"}`} /> Anti-Cheat Alerts
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => onNavigate?.("anticheat")}>
+            <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-black" onClick={() => navigate("/dashboard/admin/anticheat")}>
               Review <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
           </CardHeader>

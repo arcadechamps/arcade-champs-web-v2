@@ -29,6 +29,8 @@ export interface Game {
   description: string | null;
   rom_path: string | null;
   thumbnail_path: string | null;
+  preview_path: string | null;
+  preview_enabled: boolean;
   keymapping: Record<string, unknown> | null;
   created_at: string;
 }
@@ -90,6 +92,7 @@ export interface GameSession {
   ended_at: string | null;
   allowed_duration_seconds: number;
   score: number | null;
+  screenshot_count: number | null;
   screenshot_path: string | null;
   recording_path: string | null;
   created_at: string;

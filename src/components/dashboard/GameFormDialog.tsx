@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, Image, X, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Upload, Image, X, ChevronDown, ChevronRight, Plus, Trash2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,10 @@ import { handleNetworkError } from "@/lib/network-error-handler";
 import { GAMES } from "@/data/games-config";
 import { getKeyMapping, type DbKeymapping } from "@/data/keymappings";
 import type { Game } from "@/types/database";
+import { useMediaCompression } from "@/hooks/useMediaCompression";
 
 const STORAGE_BASE = "https://vppcnlzbpovswfjbdmpm.supabase.co/storage/v1/object/public";
-const CORES = ["mame2003_plus", "fceumm", "snes9x", "gambatte", "segaMD", "custom"];
+const CORES = ["mame2003_plus", "fceumm", "snes9x", "gambatte", "segaMD", "psx", "custom"];
 
 interface GameFormDialogProps {
   open: boolean;
@@ -38,14 +39,20 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
   const [romFile, setRomFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewPreview, setPreviewPreview] = useState<string | null>(null);
+  const [previewEnabled, setPreviewEnabled] = useState(true);
   const [useConfig, setUseConfig] = useState(false);
   const [selectedConfigId, setSelectedConfigId] = useState("");
   const [keymapOpen, setKeymapOpen] = useState(false);
   const [keymapFields, setKeymapFields] = useState<Record<string, { key: string; action: string }>>({});
   const [keymapExtras, setKeymapExtras] = useState<{ key: string; action: string }[]>([]);
 
+  const { compressMedia, isCompressing, progress } = useMediaCompression();
+
   const romRef = useRef<HTMLInputElement>(null);
   const thumbRef = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLInputElement>(null);
 
   // Populate form when editing
   useEffect(() => {
@@ -60,6 +67,11 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
       setThumbnailPreview(
         game.thumbnail_path ? `${STORAGE_BASE}/game-thumbnails/${game.thumbnail_path}` : null
       );
+      setPreviewFile(null);
+      setPreviewPreview(
+        game.preview_path ? `${STORAGE_BASE}/game-thumbnails/${game.preview_path}` : null
+      );
+      setPreviewEnabled(game.preview_enabled ?? true);
       setUseConfig(false);
       setSelectedConfigId("");
       // Populate keymapping from DB, merging with defaults for empty values
@@ -92,6 +104,9 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
       setRomFile(null);
       setThumbnailFile(null);
       setThumbnailPreview(null);
+      setPreviewFile(null);
+      setPreviewPreview(null);
+      setPreviewEnabled(true);
       setUseConfig(false);
       setSelectedConfigId("");
       setKeymapFields({});
@@ -106,6 +121,15 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => setThumbnailPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePreviewChange = (file: File | null) => {
+    setPreviewFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => setPreviewPreview(e.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -135,6 +159,7 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
       let finalDescription: string | null = description || null;
       let romPath: string | null = game?.rom_path ?? null;
       let thumbnailPath: string | null = game?.thumbnail_path ?? null;
+      let previewPath: string | null = game?.preview_path ?? null;
 
       // Build keymapping JSONB (null if empty)
       const hasKeymapData = Object.keys(keymapFields).length > 0 || keymapExtras.length > 0;
@@ -166,6 +191,17 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
         thumbnailPath = await uploadFile("game-thumbnails", thumbnailFile, finalSlug || "game");
       }
 
+      // Upload preview if new file selected
+      if (previewFile) {
+        let fileToUpload = previewFile;
+        try {
+          fileToUpload = await compressMedia(previewFile);
+        } catch (e) {
+          console.warn("Media compression failed, uploading original.", e);
+        }
+        previewPath = await uploadFile("game-thumbnails", fileToUpload, finalSlug ? `${finalSlug}-preview` : "preview");
+      }
+
       if (isEdit && game) {
         const { error } = await supabase
           .from("games")
@@ -176,6 +212,8 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
             description: finalDescription,
             rom_path: romPath,
             thumbnail_path: thumbnailPath,
+            preview_path: previewPath,
+            preview_enabled: previewEnabled,
             is_active: isActive,
             keymapping: keymappingPayload,
           } as any)
@@ -190,6 +228,8 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
           description: finalDescription,
           rom_path: romPath,
           thumbnail_path: thumbnailPath,
+          preview_path: previewPath,
+          preview_enabled: previewEnabled,
           is_active: isActive,
           keymapping: keymappingPayload,
         } as any);
@@ -257,7 +297,12 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
                 <Label className="text-muted-foreground">Title</Label>
                 <Input
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (!isEdit) {
+                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+                    }
+                  }}
                   required={!useConfig}
                   placeholder="Game Title"
                   className="border-border bg-secondary/50 text-foreground"
@@ -269,7 +314,7 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
                 <Label className="text-muted-foreground">Slug</Label>
                 <Input
                   value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''))}
                   required={!useConfig}
                   placeholder="game-slug"
                   className="border-border bg-secondary/50 text-foreground"
@@ -368,6 +413,59 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
                   accept=".jpg,.jpeg,.png,.webp"
                   onChange={(e) => handleThumbnailChange(e.target.files?.[0] ?? null)}
                 />
+              </div>
+
+              {/* Preview Video / GIF */}
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Gameplay Preview (Video/GIF)</Label>
+                {previewPreview && (
+                  <div className="relative w-32 h-20 rounded-md overflow-hidden border border-border">
+                    {previewPreview.startsWith("data:video") || previewPreview.endsWith(".mp4") || previewPreview.endsWith(".webm") ? (
+                      <video src={previewPreview} className="w-full h-full object-cover" autoPlay loop muted playsInline />
+                    ) : (
+                      <img src={previewPreview} alt="Gameplay preview" className="w-full h-full object-cover" />
+                    )}
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 rounded-full bg-background/80 p-0.5 hover:bg-destructive/80 transition-colors"
+                      onClick={() => {
+                        setPreviewFile(null);
+                        setPreviewPreview(null);
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+                <div
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-3 text-sm text-muted-foreground hover:border-accent/50 transition-colors"
+                  onClick={() => previewRef.current?.click()}
+                >
+                  <Video className="h-4 w-4" />
+                  {previewFile ? previewFile.name : "Click to upload preview (GIF/MP4/WEBM)..."}
+                </div>
+                <input
+                  ref={previewRef}
+                  type="file"
+                  className="hidden"
+                  accept=".gif,.mp4,.webm"
+                  onChange={(e) => handlePreviewChange(e.target.files?.[0] ?? null)}
+                />
+                
+                {/* Preview Toggler */}
+                <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 p-3 mt-3">
+                  <div className="space-y-0.5">
+                    <Label>Enable Preview</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Toggle whether the video clip preview displays when a user hovers the card.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={previewEnabled}
+                    onCheckedChange={setPreviewEnabled}
+                    className="data-[state=checked]:bg-neon-pink"
+                  />
+                </div>
               </div>
             </>
           )}
@@ -572,10 +670,10 @@ const GameFormDialog = ({ open, onOpenChange, game, existingGames, onSuccess }: 
 
           <Button
             type="submit"
-            disabled={submitting || (!isEdit && useConfig && !selectedConfigId)}
+            disabled={submitting || isCompressing || (!isEdit && useConfig && !selectedConfigId)}
             className="w-full bg-accent text-accent-foreground hover:bg-accent/80 neon-border-pink"
           >
-            {submitting ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save Changes" : "Add Game"}
+            {isCompressing ? `Compressing Media... ${progress}%` : submitting ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save Changes" : "Add Game"}
           </Button>
         </form>
       </DialogContent>

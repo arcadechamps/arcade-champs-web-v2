@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowDownCircle, ArrowUpCircle, DollarSign, Plus, Settings, ExternalLink, Wallet, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { handleNetworkError, handleSupabaseError } from "@/lib/network-error-handler";
 import { useQueryClient } from "@tanstack/react-query";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import TablePagination, { usePagination } from "@/components/dashboard/TablePagination";
 import type { Wallet as WalletType, WalletTransaction } from "@/types/database";
 import OnboardingTour, { type TourStep } from "@/components/OnboardingTour";
+import { useHotkeys } from "react-hotkeys-hook";
 
 const TOUR_STEPS: TourStep[] = [
   { targetSelector: '[data-tour="wallet-add"]', title: "Add Funds", description: "Top up your wallet via Stripe — fast, secure, and instant. You'll need a balance to enter contests!", position: "bottom" },
@@ -23,7 +26,7 @@ interface WalletPanelProps {
   wallet: WalletType;
   transactions: WalletTransaction[];
   onRefetch?: () => void;
-  onNavigate?: (section: string) => void;
+
 }
 
 const txTypeConfig: Record<string, { icon: typeof ArrowDownCircle; label: string; color: string }> = {
@@ -33,7 +36,8 @@ const txTypeConfig: Record<string, { icon: typeof ArrowDownCircle; label: string
   admin_adjust: { icon: Settings, label: "Arcade Champs Transaction", color: "text-primary" },
 };
 
-const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPanelProps) => {
+const WalletPanel = ({ wallet, transactions, onRefetch }: WalletPanelProps) => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const hasPayoutMethod = !!(profile as any)?.payout_method;
 
@@ -50,6 +54,16 @@ const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPane
 
   const { totalPages, totalItems, pageSize, getPage } = usePagination(transactions, 10);
   const paginatedTx = getPage(txPage);
+
+  useHotkeys('shift+d', (e) => {
+    e.preventDefault();
+    setDialogOpen(true);
+  }, { enableOnFormTags: false }, []);
+
+  useHotkeys('shift+w', (e) => {
+    e.preventDefault();
+    setWithdrawOpen(true);
+  }, { enableOnFormTags: false }, []);
 
   const handleAddFunds = async () => {
     const cents = Math.round(parseFloat(addAmount) * 100);
@@ -148,11 +162,22 @@ const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPane
           <div className="flex gap-2">
             {/* Withdraw Button */}
             <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="border-border text-muted-foreground hover:text-foreground gap-2" data-tour="wallet-withdraw">
-                  <ArrowUpCircle className="h-4 w-4" /> Withdraw
-                </Button>
-              </DialogTrigger>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="border-border text-muted-foreground hover:text-foreground gap-2" data-tour="wallet-withdraw">
+                          <ArrowUpCircle className="h-4 w-4" /> Withdraw
+                        </Button>
+                      </DialogTrigger>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Withdraw (Shift+W)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <DialogContent className="border-border/50 bg-card">
                 <DialogHeader>
                   <DialogTitle className="font-arcade text-xs text-foreground">Request Withdrawal</DialogTitle>
@@ -174,7 +199,7 @@ const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPane
                       </div>
                       <Button
                         className="w-full bg-accent text-accent-foreground hover:bg-accent/80 gap-2"
-                        onClick={() => { setWithdrawOpen(false); onNavigate?.("profile"); }}
+                        onClick={() => { setWithdrawOpen(false); navigate("/dashboard/profile"); }}
                       >
                         <Settings className="h-4 w-4" />
                         Go to Profile Settings
@@ -238,11 +263,22 @@ const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPane
 
             {/* Add Funds Button */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2" data-tour="wallet-add">
-                  <Plus className="h-4 w-4" /> Add Funds
-                </Button>
-              </DialogTrigger>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <DialogTrigger asChild>
+                        <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2" data-tour="wallet-add">
+                          <Plus className="h-4 w-4" /> Add Funds
+                        </Button>
+                      </DialogTrigger>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Add Funds (Shift+D)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <DialogContent className="border-border/50 bg-card">
                 <DialogHeader>
                   <DialogTitle className="font-arcade text-xs text-foreground">Add Funds via Stripe</DialogTitle>
@@ -298,7 +334,8 @@ const WalletPanel = ({ wallet, transactions, onRefetch, onNavigate }: WalletPane
           {paginatedTx.map((tx) => {
             const config = txTypeConfig[tx.type] ?? { icon: DollarSign, label: tx.type, color: "text-muted-foreground" };
             const Icon = config.icon;
-            const isCredit = tx.amount_cents > 0;
+            const debitTypes = ["session_fee", "payout"];
+            const isCredit = debitTypes.includes(tx.type) ? false : tx.amount_cents > 0;
             const amountColor = tx.type === "admin_adjust" 
               ? (isCredit ? "text-primary text-glow-blue" : "text-accent") 
               : (isCredit ? "text-neon-green" : "text-accent");

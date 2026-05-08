@@ -1,6 +1,12 @@
-import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { getKeyMappingWithDb, type KeyMapping, type DbKeymapping } from "@/data/keymappings";
 
 interface KeymapOverlayProps {
@@ -34,7 +40,6 @@ const Key = ({ label }: { label: string }) => (
 const isKeySet = (val?: string) => val != null && val !== "" && val !== "-";
 
 const KeymapOverlay = ({ gameSlug, core, dbKeymapping }: KeymapOverlayProps) => {
-  const [collapsed, setCollapsed] = useState(false);
   const mapping: KeyMapping = getKeyMappingWithDb(gameSlug, core, dbKeymapping);
 
   const hasDpad = isKeySet(mapping.up) || isKeySet(mapping.down) || isKeySet(mapping.left) || isKeySet(mapping.right);
@@ -43,24 +48,26 @@ const KeymapOverlay = ({ gameSlug, core, dbKeymapping }: KeymapOverlayProps) => 
   const hasExtras = mapping.extras && mapping.extras.length > 0;
 
   return (
-    <div className="flex flex-col items-end">
-      {/* Toggle button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setCollapsed(!collapsed)}
-        className="mb-1 h-7 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-      >
-        {collapsed ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-        Controls
-      </Button>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-1 h-7 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+        >
+          <Gamepad2 className="h-3 w-3" />
+          Controls
+        </Button>
+      </DialogTrigger>
 
-      {!collapsed && (
-        <div className="w-52 rounded-lg border border-border/50 bg-card/90 p-3 backdrop-blur-sm">
-          {/* Title */}
-          <p className="mb-3 text-center font-arcade text-[8px] tracking-wider text-muted-foreground">
+      <DialogContent className="w-64 max-w-[90vw] rounded-lg border border-border/50 bg-card/95 p-4 backdrop-blur-md">
+        <DialogHeader>
+          <DialogTitle className="text-center font-arcade text-[10px] tracking-wider text-muted-foreground">
             CONTROLS
-          </p>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="mt-2">
 
           {/* ── GAMEPAD SECTION ── */}
           <div className="flex items-start justify-between gap-3">
@@ -224,8 +231,8 @@ const KeymapOverlay = ({ gameSlug, core, dbKeymapping }: KeymapOverlayProps) => 
             )}
           </div>
         </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

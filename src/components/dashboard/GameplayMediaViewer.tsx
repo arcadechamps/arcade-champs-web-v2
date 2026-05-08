@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import type { GameSession } from "@/types/database";
 
@@ -24,6 +25,9 @@ const GameplayMediaViewer = ({
   gameTitle,
 }: GameplayMediaViewerProps) => {
   const [url, setUrl] = useState<string | null>(null);
+  const [urlT15, setUrlT15] = useState<string | null>(null);
+  const [urlT10, setUrlT10] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"final" | "t15" | "t10">("final");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,19 +42,35 @@ const GameplayMediaViewer = ({
       setLoading(true);
       setError(null);
 
-      const bucket = type === "screenshot" ? "gameplay-screenshots" : "gameplay-recordings";
-      const fallbackExt = type === "screenshot" ? "png" : "webm";
-      const pathField = type === "screenshot" ? session.screenshot_path : session.recording_path;
-      const path = pathField || `${session.user_id}/${session.session_id}.${fallbackExt}`;
+      if (type === "screenshot") {
+        const basePath = `${session.user_id}/${session.session_id}`;
+        
+        // Fetch Final (or default)
+        const path = session.screenshot_path || `${basePath}.png`;
+        const { data: data3 } = await supabase.storage.from("gameplay-screenshots").createSignedUrl(path, 600);
+        if (data3?.signedUrl) setUrl(data3.signedUrl);
+        else setError("No screenshot found for this session");
 
-      const { data, error: storageError } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(path, 600);
+        // Fetch T-15s
+        const path1 = `${basePath}_1.png`;
+        const { data: data1 } = await supabase.storage.from("gameplay-screenshots").createSignedUrl(path1, 600);
+        if (data1?.signedUrl) setUrlT15(data1.signedUrl);
 
-      if (storageError || !data?.signedUrl) {
-        setError(`No ${type} found for this session`);
+        // Fetch T-10s
+        const path2 = `${basePath}_2.png`;
+        const { data: data2 } = await supabase.storage.from("gameplay-screenshots").createSignedUrl(path2, 600);
+        if (data2?.signedUrl) setUrlT10(data2.signedUrl);
       } else {
-        setUrl(data.signedUrl);
+        const path = session.recording_path || `${session.user_id}/${session.session_id}.webm`;
+        const { data, error: storageError } = await supabase.storage
+          .from("gameplay-recordings")
+          .createSignedUrl(path, 600);
+
+        if (storageError || !data?.signedUrl) {
+          setError(`No recording found for this session`);
+        } else {
+          setUrl(data.signedUrl);
+        }
       }
       setLoading(false);
     };
@@ -87,11 +107,41 @@ const GameplayMediaViewer = ({
           )}
 
           {!loading && !error && url && type === "screenshot" && (
-            <img
-              src={url}
-              alt="Gameplay screenshot"
-              className="w-full rounded-lg border border-border/30"
-            />
+            <div className="space-y-4">
+              {(urlT15 || urlT10) && (
+                <div className="flex gap-2 justify-center">
+                  <Button 
+                    variant={activeTab === "t15" ? "default" : "outline"} 
+                    size="sm" 
+                    disabled={!urlT15}
+                    onClick={() => setActiveTab("t15")}
+                  >
+                    T-15s
+                  </Button>
+                  <Button 
+                    variant={activeTab === "t10" ? "default" : "outline"} 
+                    size="sm" 
+                    disabled={!urlT10}
+                    onClick={() => setActiveTab("t10")}
+                  >
+                    T-10s
+                  </Button>
+                  <Button 
+                    variant={activeTab === "final" ? "default" : "outline"} 
+                    size="sm" 
+                    disabled={!url}
+                    onClick={() => setActiveTab("final")}
+                  >
+                    Final
+                  </Button>
+                </div>
+              )}
+              <img
+                src={activeTab === "t15" && urlT15 ? urlT15 : activeTab === "t10" && urlT10 ? urlT10 : url}
+                alt="Gameplay screenshot"
+                className="w-full rounded-lg border border-border/30"
+              />
+            </div>
           )}
 
           {!loading && !error && url && type === "recording" && (

@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { fetchAndCachePreview, getCachedPreview } from "@/lib/previewCache";
 import Layout from "@/components/Layout";
 import { PageMeta } from "@/components/PageMeta";
 import { Trophy, Clock, Shield, Users, Loader2, DollarSign, Gamepad2, Play, ChevronDown, ChevronUp, Ban, Crown, Gift, Medal, Award, Filter, ArrowDownUp } from "lucide-react";
@@ -24,12 +25,296 @@ const statusColors: Record<string, string> = {
   closed: "border-muted-foreground/30 text-muted-foreground",
 };
 
-function ContestCardWrapper({ index, tourProps, children }: { index: number; tourProps: Record<string, string>; children: React.ReactNode }) {
+function ContestCardWrapper({ index, tourProps, onMouseEnter, onMouseLeave, children }: { index: number; tourProps: Record<string, string>; onMouseEnter?: () => void; onMouseLeave?: () => void; children: React.ReactNode }) {
   const ref = useScrollReveal<HTMLDivElement>({ variant: "fade-up", delay: staggerDelay(index) });
   return (
-    <div ref={ref} className="rounded-lg border border-border/50 bg-card transition-all hover:neon-border-pink overflow-hidden w-full max-w-[420px]" {...tourProps}>
+    <div
+      ref={ref}
+      className="rounded-lg border border-border/50 bg-card transition-all hover:neon-border-pink overflow-hidden w-full max-w-[420px]"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      {...tourProps}
+    >
       {children}
     </div>
+  );
+}
+
+function ContestCardComponent({
+  c,
+  idx,
+  joined,
+  isBanned,
+  banReason,
+  timeLeft,
+  cGames,
+  isExpanded,
+  winner,
+  getWinnerName,
+  setExpandedContest,
+  handleJoin,
+  joining,
+  user
+}: any) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Derive URL first — needed by the blobUrl lazy initialiser below.
+  const activeGame = cGames[activeIndex];
+  const actualPreviewPath = activeGame?.preview_enabled && activeGame?.preview_path ? activeGame.preview_path : null;
+  const isVideo = actualPreviewPath ? (actualPreviewPath.endsWith('.mp4') || actualPreviewPath.endsWith('.webm')) : false;
+
+  // Build the remote URL for whatever should be shown: video preview, fallback to thumbnail, then prize image
+  const displayPath = actualPreviewPath || activeGame?.thumbnail_path;
+  const remotePreviewUrl = displayPath ? `${STORAGE_BASE}/game-thumbnails/${displayPath}` : null;
+
+  // blobUrl: undefined = not yet fetched, null = loading, string = ready
+  // Seed from sessionStorage-backed cache so restored clips show instantly.
+  const [blobUrl, setBlobUrl] = useState<string | null | undefined>(
+    () => (remotePreviewUrl ? getCachedPreview(remotePreviewUrl) ?? undefined : undefined)
+  );
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Rotate active game every 10s while hovered
+  useEffect(() => {
+    if (!isHovered || cGames.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveIndex(prev => {
+        const nextIndex = (prev + 1) % cGames.length;
+        const nextGame = cGames[nextIndex];
+        const nextPath = (nextGame?.preview_enabled && nextGame?.preview_path) ? nextGame.preview_path : nextGame?.thumbnail_path;
+        const nextUrl = nextPath ? `${STORAGE_BASE}/game-thumbnails/${nextPath}` : null;
+        // Use cached blob instantly; fall back to undefined to trigger a fetch.
+        setBlobUrl(nextUrl ? (getCachedPreview(nextUrl) ?? undefined) : undefined);
+        return nextIndex;
+      });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isHovered, cGames.length]);
+
+  // Reset on hover-start so the first game always shows
+  useEffect(() => {
+    if (isHovered) {
+      setActiveIndex(0);
+      // Seed from cache; undefined triggers a fresh fetch if not cached.
+      setBlobUrl(remotePreviewUrl ? (getCachedPreview(remotePreviewUrl) ?? undefined) : undefined);
+    }
+  }, [isHovered]);
+
+  // Fetch (or retrieve from shared cache) the preview for the active game
+  useEffect(() => {
+    if (!isHovered || !remotePreviewUrl || blobUrl !== undefined) return;
+
+    setBlobUrl(null); // mark loading
+    fetchAndCachePreview(remotePreviewUrl).then(url => {
+      setBlobUrl(url);
+    });
+  }, [isHovered, remotePreviewUrl, blobUrl]);
+
+  // Play/pause video without remounting it
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isVideo) return;
+    if (isHovered && blobUrl) {
+      video.currentTime = 0;
+      video.play().catch(() => { });
+    } else {
+      video.pause();
+    }
+  }, [isHovered, blobUrl, isVideo]);
+
+  const showPreview = isHovered && !!blobUrl;
+  const isLoading = isHovered && remotePreviewUrl && blobUrl === null;
+
+  return (
+    <ContestCardWrapper
+      index={idx}
+      tourProps={idx === 0 ? { "data-tour": "contest-card" } : {}}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="relative h-64 w-full bg-[#0F172A] overflow-hidden">
+
+        {/* Loading spinner */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0F172A] z-10">
+            <Loader2 className="h-8 w-8 text-neon-pink animate-spin" />
+          </div>
+        )}
+
+        {/* Static fallback: prize image or mystery-prize placeholder — always rendered */}
+        {(c as any).prize_image_path ? (
+          <img
+            src={`${STORAGE_BASE}/game-thumbnails/${(c as any).prize_image_path}`}
+            alt={`${c.title} prize`}
+            className={`w-full h-full object-cover transition-opacity duration-500 ${showPreview ? 'opacity-0' : 'opacity-80'}`}
+            loading="lazy"
+          />
+        ) : (
+          <div className={`w-full h-full bg-[#1A233A] flex flex-col items-center justify-center relative transition-opacity duration-500 ${showPreview ? 'opacity-0' : 'opacity-100'}`}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-neon-pink/10" />
+            <div className="h-16 w-16 rounded-full bg-black/30 flex items-center justify-center mb-2 shadow-lg border border-white/5 relative z-10">
+              <Gift className="h-8 w-8 text-primary/60" />
+            </div>
+            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider relative z-10">Mystery Prize</span>
+          </div>
+        )}
+
+        {/* Video preview — kept mounted after first fetch to avoid re-downloading */}
+        {isVideo && blobUrl && (
+          <video
+            ref={videoRef}
+            src={blobUrl}
+            loop
+            muted
+            playsInline
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showPreview ? 'opacity-80' : 'opacity-0 pointer-events-none'}`}
+          />
+        )}
+
+        {/* Image/GIF preview — same DOM-persistence pattern */}
+        {!isVideo && blobUrl && (
+          <img
+            src={blobUrl}
+            alt="preview"
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showPreview ? 'opacity-80' : 'opacity-0 pointer-events-none'}`}
+          />
+        )}
+
+        {/* Active game label */}
+        {showPreview && activeGame && (
+          <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-20 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
+            <Gamepad2 className="h-3 w-3 text-neon-pink" />
+            <span className="text-[10px] text-white font-bold">{activeGame.title}</span>
+          </div>
+        )}
+
+        {/* Top Badges */}
+        <div className="absolute top-3 left-3 flex items-center gap-2 z-20">
+          {joined && !isBanned && (
+            <div className="flex items-center gap-1 rounded-full bg-[#00D06A] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+              <span className="text-white">✓</span> Participating
+            </div>
+          )}
+          {isBanned && (
+            <div className="flex items-center gap-1 rounded-full bg-destructive px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+              <Ban className="h-3 w-3" /> Banned
+            </div>
+          )}
+          <div className={`rounded-full px-3 py-1 text-[11px] font-bold shadow-sm ${c.status === 'active' ? 'bg-blue-600 text-white' : c.status === 'closed' ? 'bg-[#FF3B30] text-white' : 'bg-primary text-primary-foreground'}`}>
+            {c.status}
+          </div>
+        </div>
+
+        {c.prize_cents > 0 && (
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-[#A322FF] px-3 py-1 text-[11px] font-bold text-white z-20 shadow-sm">
+            <Gift className="h-3.5 w-3.5" />
+            <span>${(c.prize_cents / 100).toLocaleString()} Prize</span>
+          </div>
+        )}
+
+        {/* Winner display inset on the image for closed contests */}
+        {winner && c.status === "closed" && (
+          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 px-3 py-2 z-20">
+            <Crown className="h-4 w-4 text-yellow-400" />
+            <span className="text-xs text-white font-medium truncate">
+              Winner: {getWinnerName(winner.user_id)} — {winner.winning_score.toLocaleString()} pts
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="p-5 flex flex-col gap-5">
+        {/* Title & Description */}
+        <div>
+          <h3 className="mb-2 text-xl font-bold text-white leading-tight capitalize">{c.title}</h3>
+          {(c as any).prize_description ? (
+            <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-neon-pink/10 px-2.5 py-1">
+              <Gift className="h-3.5 w-3.5 text-neon-pink" />
+              <span className="text-xs font-bold text-neon-pink">Win: {(c as any).prize_description}</span>
+            </div>
+          ) : c.prize_cents > 0 ? (
+            <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-neon-pink/10 px-2.5 py-1">
+              <Gift className="h-3.5 w-3.5 text-neon-pink" />
+              <span className="text-xs font-bold text-neon-pink">Win: ${(c.prize_cents / 100).toLocaleString()}</span>
+            </div>
+          ) : null}
+
+          {c.description ? (
+            <p className="text-[13px] text-slate-300 line-clamp-2">{c.description}</p>
+          ) : (
+            <p className="text-[13px] text-slate-300">Compete for the top spot on the leaderboard.</p>
+          )}
+        </div>
+
+        {/* Info Boxes */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5 rounded-xl bg-[#202B45] p-3.5 border border-white/5">
+            <span className="text-xs text-slate-400 font-medium tracking-wide">Entry Fee</span>
+            <span className="text-sm font-semibold text-white">{(c.session_fee_cents === 0) ? "Free" : `$${(c.session_fee_cents / 100).toFixed(2)} fee`}</span>
+          </div>
+          <div className="flex flex-col gap-1.5 rounded-xl bg-[#202B45] p-3.5 border border-white/5">
+            <span className="text-xs text-slate-400 font-medium tracking-wide">Duration</span>
+            <span className="text-sm font-semibold text-white">{c.session_duration_seconds / 60}min</span>
+          </div>
+        </div>
+
+        {/* Footer Info */}
+        <div className="flex flex-wrap items-center justify-between text-xs font-medium text-slate-400 mt-1">
+          {timeLeft ? (
+            <span className="flex items-center gap-1.5 text-[#FF3B30]">
+              <Clock className="h-4 w-4" /> {timeLeft}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[#FF3B30]">
+              <Clock className="h-4 w-4" /> Ended
+            </span>
+          )}
+          <span className="flex items-center gap-1.5 text-[#00D06A]">
+            <Shield className="h-4 w-4" /> Anti-Cheat
+          </span>
+          {cGames.length > 0 && (
+            <span className="flex items-center gap-1.5 text-[#4A90E2]">
+              <Gamepad2 className="h-4 w-4" /> {cGames.length} games
+            </span>
+          )}
+        </div>
+
+        {/* Action Button & Loader */}
+        <div className="mt-2 space-y-3">
+          {c.status === "closed" ? (
+            <Button disabled className="w-full bg-[#202B45] hover:bg-[#202B45] text-slate-500 border-none font-semibold h-11 tracking-wide">
+              Contest Closed
+            </Button>
+          ) : joined ? (
+            <Button
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg font-bold h-11 transition-transform active:scale-[0.98]"
+              onClick={() => setExpandedContest(c.id)}
+              data-tour="contest-games"
+            >
+              Play Now
+            </Button>
+          ) : (
+            <Button
+              className="w-full bg-white text-black hover:bg-slate-200 font-bold h-11 transition-transform active:scale-[0.98]"
+              onClick={() => handleJoin(c.id)}
+              disabled={joining === c.id}
+              data-tour="contest-join"
+            >
+              {joining === c.id ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Joining...</>
+              ) : (
+                "Enter Contest"
+              )}
+            </Button>
+          )}
+
+          {(c.status === "active" || c.status === "closed") && (
+            <ContestLeaderboard contestId={c.id} currentUserId={user?.id} />
+          )}
+        </div>
+      </div>
+    </ContestCardWrapper>
   );
 }
 
@@ -316,7 +601,7 @@ const Contest = () => {
   } else if (filterParticipating === "not-joined") {
     filteredContests = filteredContests.filter(c => !isJoined(c.id));
   }
-  
+
   filteredContests.sort((a, b) => {
     if (sortBy === "fee-low") return a.session_fee_cents - b.session_fee_cents;
     if (sortBy === "fee-high") return b.session_fee_cents - a.session_fee_cents;
@@ -326,8 +611,8 @@ const Contest = () => {
 
   return (
     <Layout>
-      <PageMeta 
-        title="Active Contests" 
+      <PageMeta
+        title="Active Contests"
         description="Enter skill-based retro gaming contests, compete on the leaderboard, and win real prizes."
         schema={contests.length > 0 ? generateContestSchema() : undefined}
         canonicalUrl="/contest"
@@ -409,152 +694,23 @@ const Contest = () => {
                 const winner = contestWinners.find(w => w.contest_id === c.id);
 
                 return (
-                  <ContestCardWrapper key={c.id} index={idx} tourProps={idx === 0 ? { "data-tour": "contest-card" } : {}}>
-                    <div className="relative h-48 w-full bg-[#0F172A] overflow-hidden">
-                      {/* Image */}
-                      {(c as any).prize_image_path ? (
-                        <img
-                          src={`${STORAGE_BASE}/game-thumbnails/${(c as any).prize_image_path}`}
-                          alt={`${c.title} prize`}
-                          className="w-full h-full object-cover opacity-80"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-[#1A233A] flex flex-col items-center justify-center relative">
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-neon-pink/10" />
-                          <div className="h-16 w-16 rounded-full bg-black/30 flex items-center justify-center mb-2 shadow-lg border border-white/5 relative z-10">
-                            <Gift className="h-8 w-8 text-primary/60" />
-                          </div>
-                          <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider relative z-10">Mystery Prize</span>
-                        </div>
-                      )}
-                      
-                      {/* Top Badges */}
-                      <div className="absolute top-3 left-3 flex items-center gap-2">
-                        {joined && !isBanned && (
-                          <div className="flex items-center gap-1 rounded-full bg-[#00D06A] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
-                            <span className="text-white">✓</span> Participating
-                          </div>
-                        )}
-                        {isBanned && (
-                          <div className="flex items-center gap-1 rounded-full bg-destructive px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
-                            <Ban className="h-3 w-3" /> Banned
-                          </div>
-                        )}
-                        <div className={`rounded-full px-3 py-1 text-[11px] font-bold shadow-sm ${c.status === 'active' ? 'bg-blue-600 text-white' : c.status === 'closed' ? 'bg-[#FF3B30] text-white' : 'bg-primary text-primary-foreground'}`}>
-                          {c.status}
-                        </div>
-                      </div>
-
-                      {c.prize_cents > 0 && (
-                        <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-[#A322FF] px-3 py-1 text-[11px] font-bold text-white shadow-sm">
-                          <Gift className="h-3.5 w-3.5" />
-                          <span>${(c.prize_cents / 100).toLocaleString()} Prize</span>
-                        </div>
-                      )}
-
-                      {/* Winner display inset on the image for closed contests */}
-                      {winner && c.status === "closed" && (
-                        <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 px-3 py-2">
-                          <Crown className="h-4 w-4 text-yellow-400" />
-                          <span className="text-xs text-white font-medium truncate">
-                            Winner: {getWinnerName(winner.user_id)} — {winner.winning_score.toLocaleString()} pts
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-5 flex flex-col gap-5 bg-[#172033]">
-                      {/* Title & Description */}
-                      <div>
-                        <h3 className="mb-2 text-xl font-bold text-white leading-tight capitalize">{c.title}</h3>
-                        {(c as any).prize_description ? (
-                          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-neon-pink/10 px-2.5 py-1">
-                            <Gift className="h-3.5 w-3.5 text-neon-pink" />
-                            <span className="text-xs font-bold text-neon-pink">Win: {(c as any).prize_description}</span>
-                          </div>
-                        ) : c.prize_cents > 0 ? (
-                          <div className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-neon-pink/10 px-2.5 py-1">
-                            <Gift className="h-3.5 w-3.5 text-neon-pink" />
-                            <span className="text-xs font-bold text-neon-pink">Win: ${(c.prize_cents / 100).toLocaleString()}</span>
-                          </div>
-                        ) : null}
-                        
-                        {c.description ? (
-                          <p className="text-[13px] text-slate-300 line-clamp-2">{c.description}</p>
-                        ) : (
-                          <p className="text-[13px] text-slate-300">Compete for the top spot on the leaderboard.</p>
-                        )}
-                      </div>
-
-                      {/* Info Boxes */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1.5 rounded-xl bg-[#202B45] p-3.5 border border-white/5">
-                          <span className="text-xs text-slate-400 font-medium tracking-wide">Entry Fee</span>
-                          <span className="text-sm font-semibold text-white">{(c.session_fee_cents === 0) ? "Free" : `$${(c.session_fee_cents / 100).toFixed(2)} fee`}</span>
-                        </div>
-                        <div className="flex flex-col gap-1.5 rounded-xl bg-[#202B45] p-3.5 border border-white/5">
-                          <span className="text-xs text-slate-400 font-medium tracking-wide">Duration</span>
-                          <span className="text-sm font-semibold text-white">{c.session_duration_seconds / 60}min</span>
-                        </div>
-                      </div>
-
-                      {/* Footer Info */}
-                      <div className="flex flex-wrap items-center justify-between text-xs font-medium text-slate-400 mt-1">
-                        {timeLeft ? (
-                          <span className="flex items-center gap-1.5 text-[#FF3B30]">
-                            <Clock className="h-4 w-4" /> {timeLeft}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-[#FF3B30]">
-                            <Clock className="h-4 w-4" /> Ended
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1.5 text-[#00D06A]">
-                          <Shield className="h-4 w-4" /> Anti-Cheat
-                        </span>
-                        {cGames.length > 0 && (
-                          <span className="flex items-center gap-1.5 text-[#4A90E2]">
-                            <Gamepad2 className="h-4 w-4" /> {cGames.length} games
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Action Button & Loader */}
-                      <div className="mt-2 space-y-3">
-                        {c.status === "closed" ? (
-                          <Button disabled className="w-full bg-[#202B45] hover:bg-[#202B45] text-slate-500 border-none font-semibold h-11 tracking-wide">
-                            Contest Closed
-                          </Button>
-                        ) : joined ? (
-                          <Button
-                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg font-bold h-11 transition-transform active:scale-[0.98]"
-                            onClick={() => setExpandedContest(c.id)}
-                            data-tour="contest-games"
-                          >
-                            Play Now
-                          </Button>
-                        ) : (
-                          <Button
-                            className="w-full bg-white text-black hover:bg-slate-200 font-bold h-11 transition-transform active:scale-[0.98]"
-                            onClick={() => handleJoin(c.id)}
-                            disabled={joining === c.id}
-                            data-tour="contest-join"
-                          >
-                            {joining === c.id ? (
-                              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Joining...</>
-                            ) : (
-                              "Enter Contest"
-                            )}
-                          </Button>
-                        )}
-                        
-                        {(c.status === "active" || c.status === "closed") && (
-                          <ContestLeaderboard contestId={c.id} currentUserId={user?.id} />
-                        )}
-                      </div>
-                    </div>
-                  </ContestCardWrapper>
+                  <ContestCardComponent
+                    key={c.id}
+                    c={c}
+                    idx={idx}
+                    joined={joined}
+                    isBanned={isBanned}
+                    banReason={banReason}
+                    timeLeft={timeLeft}
+                    cGames={cGames}
+                    isExpanded={isExpanded}
+                    winner={winner}
+                    getWinnerName={getWinnerName}
+                    setExpandedContest={setExpandedContest}
+                    handleJoin={handleJoin}
+                    joining={joining}
+                    user={user}
+                  />
                 );
               })}
             </div>
@@ -598,7 +754,7 @@ const Contest = () => {
               </DialogDescription>
             </DialogHeader>
           </div>
-          
+
           <div className="p-6 bg-[#0F172A]">
             {!expandedContest ? null : getContestGames(expandedContest).length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-[#202B45] rounded-xl bg-[#172033]/30">
@@ -611,7 +767,7 @@ const Contest = () => {
                 {getContestGames(expandedContest).map(game => {
                   const contestInfo = contests.find(c => c.id === expandedContest);
                   const { isBanned, banReason } = getBanStatus(expandedContest);
-                  
+
                   return (
                     <button
                       key={game.id}
@@ -625,29 +781,28 @@ const Contest = () => {
                         setExpandedContest(null);
                         handlePlayContestGame(contestInfo, game.slug);
                       }}
-                      className={`group relative flex flex-col rounded-xl border transition-all duration-300 overflow-hidden text-left bg-[#172033] focus:outline-none focus:ring-2 focus:ring-neon-pink/50 ${
-                        isBanned
-                          ? "border-destructive/30 opacity-70 cursor-not-allowed"
-                          : "border-[#202B45] hover:border-neon-pink/50 hover:shadow-[0_0_20px_rgba(255,42,133,0.15)] hover:-translate-y-1"
-                      }`}
+                      className={`group relative flex flex-col rounded-xl border transition-all duration-300 overflow-hidden text-left bg-[#172033] focus:outline-none focus:ring-2 focus:ring-neon-pink/50 ${isBanned
+                        ? "border-destructive/30 opacity-70 cursor-not-allowed"
+                        : "border-[#202B45] hover:border-neon-pink/50 hover:shadow-[0_0_20px_rgba(255,42,133,0.15)] hover:-translate-y-1"
+                        }`}
                     >
                       {/* Image / Header area */}
                       <div className="aspect-video w-full bg-[#0B1121] relative overflow-hidden shrink-0">
                         {game.thumbnail_path ? (
-                          <img 
-                            src={`${STORAGE_BASE}/game-thumbnails/${game.thumbnail_path}`} 
-                            alt={game.title} 
-                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                          <img
+                            src={`${STORAGE_BASE}/game-thumbnails/${game.thumbnail_path}`}
+                            alt={game.title}
+                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                           />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center">
                             <Gamepad2 className="h-10 w-10 text-slate-700/50" />
                           </div>
                         )}
-                        
+
                         {/* Overlay bottom gradient */}
                         <div className="absolute inset-0 bg-gradient-to-t from-[#172033] via-transparent to-transparent opacity-90" />
-                        
+
                         {/* Play Action Overlay */}
                         {!isBanned && (
                           <div className="absolute inset-0 bg-[#0F172A]/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]">
@@ -656,7 +811,7 @@ const Contest = () => {
                             </div>
                           </div>
                         )}
-                        
+
                         {/* Banned Overlay */}
                         {isBanned && (
                           <div className="absolute inset-0 bg-destructive/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center">
@@ -665,7 +820,7 @@ const Contest = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       {/* Content area */}
                       <div className="p-4 flex-1 flex flex-col">
                         <h3 className="font-arcade text-sm text-foreground mb-3 line-clamp-1 group-hover:text-neon-pink transition-colors leading-relaxed" title={game.title}>{game.title}</h3>

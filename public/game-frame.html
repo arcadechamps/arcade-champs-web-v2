@@ -106,7 +106,7 @@
         }
         screenshotSentAt = now;
         console.log('[GameFrame] Screenshot sent to parent at', now);
-        window.parent.postMessage({ type: 'emulator_screenshot', data: dataUrl }, '*');
+        window.parent.postMessage({ type: 'emulator_screenshot', data: dataUrl, index: window._screenshotIndex }, '*');
       }
 
       // ── Screenshot: direct canvas capture first, html2canvas fallback ──
@@ -212,8 +212,57 @@
       // Listen for commands from parent React app
       // Recording is now handled by RecordRTC at the parent level (GamePlayer.tsx)
       window.addEventListener('message', function (e) {
-        if (e.data?.type === 'CAPTURE_SCREENSHOT') takeScreenshot();
+        if (e.data?.type === 'CAPTURE_SCREENSHOT') {
+          window._screenshotIndex = e.data.index;
+          takeScreenshot();
+        }
+        if (e.data?.type === 'END_SESSION_PAUSE') {
+          window._screenshotIndex = 3;
+          window.isSessionEnded = true;
+          
+          // Send "P" (MAME pause) and "Enter" (Start / Console pause)
+          const keys = [
+            { key: 'p', code: 'KeyP', keyCode: 80 },
+            { key: 'Enter', code: 'Enter', keyCode: 13 }
+          ];
+          
+          keys.forEach(k => {
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: k.key, code: k.code, keyCode: k.keyCode, which: k.keyCode }));
+            setTimeout(() => {
+              document.dispatchEvent(new KeyboardEvent('keyup', { key: k.key, code: k.code, keyCode: k.keyCode, which: k.keyCode }));
+            }, 100);
+          });
+          
+          // Wait 2 seconds for visual effects to settle, then take screenshot
+          setTimeout(() => {
+            takeScreenshot();
+          }, 2000);
+        }
       });
+
+      // ── End session logic & Input Blocking ──
+      window.isSessionEnded = false;
+
+      // Monkey-patch getGamepads to return empty array when session is ended
+      const originalGetGamepads = navigator.getGamepads ? navigator.getGamepads.bind(navigator) : null;
+      if (originalGetGamepads) {
+        navigator.getGamepads = function() {
+          if (window.isSessionEnded) {
+            return []; // Return no gamepads to disable input
+          }
+          return originalGetGamepads();
+        };
+      }
+
+      // Block keyboard events when session ends (but allow synthetic events from our pause logic)
+      const blockInput = (evt) => {
+        if (window.isSessionEnded && evt.isTrusted) {
+          evt.stopImmediatePropagation();
+          evt.preventDefault();
+        }
+      };
+      window.addEventListener('keydown', blockInput, { capture: true });
+      window.addEventListener('keyup', blockInput, { capture: true });
 
       // Forward keyboard events to parent for anti-cheat / analytics
       const forwardKey = (evt) => {

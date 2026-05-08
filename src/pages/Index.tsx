@@ -540,6 +540,8 @@ function StaggeredGameCard({ game, index, playCounts, topPlayers, contestGameMap
         slug={game.slug}
         title={game.title}
         thumbnailPath={game.thumbnail_path}
+        previewPath={game.preview_path}
+        previewEnabled={game.preview_enabled}
         description={game.description}
         playCount={playCounts[game.id] || 0}
         topPlayer={topPlayers[game.id]}
