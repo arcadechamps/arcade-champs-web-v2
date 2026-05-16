@@ -314,7 +314,7 @@ All tables have RLS enabled. General pattern:
 - **Games**: Many-to-many via `contest_games` table
 - **Participation**: Users join contests, admins can ban/unban with reasons
 - **Prize image**: Admins can upload a prize image (e.g., a PS5 photo) when creating/editing a contest. Stored in `game-thumbnails` bucket at `prizes/{contestId}.{ext}`, path saved in `contests.prize_image_path`. Displayed on the public contest card between the title and description.
-- **Contest Rules Modal**: Gate before gameplay with rules summary (timed session, score tracking, anti-cheat active). For **paid contests**, always shows entry fee confirmation. For **free contests**, offers a "Don't remind me again" checkbox (localStorage-persisted). Shows inline error on insufficient balance.
+- **Contest Rules Modal**: Gate before gameplay with rules summary (timed session, score tracking, anti-cheat active, gamepad recommendation). For **paid contests**, always shows entry fee confirmation. For **free contests**, offers a "Don't remind me again" checkbox (localStorage-persisted). Shows inline error on insufficient balance.
 - **Contest Not Started Dialog**: Shown when a user tries to play a contest that hasn't started yet
 - **Public contest leaderboard**: Each contest card has a collapsible leaderboard showing top 5 players (see §8.10)
 
