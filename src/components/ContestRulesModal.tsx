@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Clock, Shield, Trophy, AlertTriangle, Play, ArrowLeft, Loader2 } from "lucide-react";
+import { Clock, Shield, Trophy, AlertTriangle, Play, ArrowLeft, Loader2, Gamepad2 } from "lucide-react";
 
 const STORAGE_KEY = "contest-rules-dismissed";
 
@@ -43,7 +43,7 @@ const ContestRulesModal = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog open={open} onOpenChange={() => { }}>
       <DialogContent className="border-neon-pink/30 bg-card max-w-md [&>button]:hidden" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="font-arcade text-sm text-neon-pink text-center">Contest Rules</DialogTitle>
@@ -57,7 +57,15 @@ const ContestRulesModal = ({
             <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <div>
               <p className="text-xs font-medium text-foreground">Timed Session: {timeLabel}</p>
-              <p className="text-[11px] text-muted-foreground">The countdown starts when you click "Start Playing". No pausing allowed.</p>
+              <p className="text-[11px] text-muted-foreground">Click 'Start Playing' to begin playing game. No pausing.</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-lg border border-border/50 bg-secondary/20 p-3">
+            <Gamepad2 className="mt-0.5 h-4 w-4 shrink-0 text-neon-blue" />
+            <div>
+              <p className="text-xs font-medium text-foreground">Gamepad Recommended ⚠️</p>
+              <p className="text-[11px] text-muted-foreground">For the best experience, we highly recommend using a gamepad.</p>
             </div>
           </div>
 
@@ -85,7 +93,7 @@ const ContestRulesModal = ({
                   Entry Fee: <span className="text-yellow-400">${(feeCents / 100).toFixed(2)}</span>
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  This amount will be deducted from your wallet when you click "Start Playing".
+                  Clicking 'Start Playing' will deduct this from your wallet.
                 </p>
               </div>
             </div>
