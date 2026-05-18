@@ -91,7 +91,7 @@ const Index = () => {
   const communityTextRef = useScrollReveal<HTMLDivElement>({ variant: "fade-left" });
   const communityImgRef = useScrollReveal<HTMLDivElement>({ variant: "fade-right", delay: 150 });
   const statsRef = useScrollReveal<HTMLDivElement>({ variant: "scale-in" });
-  const gamesHeaderRef = useScrollReveal<HTMLDivElement>({ variant: "fade-up" });
+  const gamesHeaderRef = useScrollReveal<HTMLDivElement>({ variant: "scale-in" });
   const leaderboardRef = useScrollReveal<HTMLDivElement>({ variant: "fade-up" });
   const newsletterRef = useScrollReveal<HTMLDivElement>({ variant: "fade-up" });
 
@@ -273,8 +273,8 @@ const Index = () => {
 
   return (
     <Layout>
-      <PageMeta 
-        title="Home" 
+      <PageMeta
+        title="Home"
         description="Play fun arcade games, compete in contests, and win prizes on the ultimate retro gaming platform."
         canonicalUrl="/"
         schema={{
@@ -375,7 +375,11 @@ const Index = () => {
       {/* Most Played Games */}
       <section className="py-20">
         <div className="container">
-          <div ref={gamesHeaderRef} className="mb-10 text-center">
+          <div ref={gamesHeaderRef} className="mb-10 flex flex-col items-center text-center">
+            <div className="mb-6 inline-flex items-center rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm">
+              <span className="font-bold text-destructive mr-2">ATTENTION:</span>
+              <span className="text-foreground">For best gameplay experience use a USB controller!</span>
+            </div>
             <span className="mb-3 inline-block font-arcade text-[10px] text-accent">TOP PICKS</span>
             <h2 className="font-arcade text-lg text-foreground md:text-xl">
               Most Played <span className="text-primary text-glow-blue">Games</span>
@@ -453,8 +457,8 @@ const Index = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-muted-foreground">{entry.game}</td>
-                     <td className="px-4 py-4 text-right font-arcade text-xs text-primary">{entry.score.toLocaleString()}</td>
-                     <td className="px-4 py-4 text-right text-sm font-semibold text-neon-green">{entry.payout > 0 ? `$${(entry.payout / 100).toLocaleString()}` : "N/A"}</td>
+                    <td className="px-4 py-4 text-right font-arcade text-xs text-primary">{entry.score.toLocaleString()}</td>
+                    <td className="px-4 py-4 text-right text-sm font-semibold text-neon-green">{entry.payout > 0 ? `$${(entry.payout / 100).toLocaleString()}` : "N/A"}</td>
                   </tr>
                 ))}
               </tbody>
