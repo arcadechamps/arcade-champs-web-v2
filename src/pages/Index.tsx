@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Gamepad2, Trophy, Target, Users, Zap, Star, ArrowRight, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import GameCard from "@/components/GameCard";
+import { FeaturedGamesShowcase } from "@/components/FeaturedGamesShowcase";
 import { PageMeta } from "@/components/PageMeta";
 import Layout from "@/components/Layout";
 import { games as staticGames } from "@/data/games";
@@ -294,17 +294,17 @@ const Index = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
         </div>
         <div className="bg-grid relative md:pt-20">
-          <div ref={heroRef} className="container flex min-h-[70vh] flex-col items-center justify-center py-20 text-center">
-            <span className="mb-4 inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary">
+          <div ref={heroRef} className="container flex flex-col items-center justify-center pt-20 pb-16 text-center">
+            {/* <span className="mb-4 inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary">
               🎮 Skill-Based Retro Gaming
-            </span>
+            </span> */}
             <h1 className="mb-6 max-w-3xl font-arcade text-2xl leading-relaxed text-foreground md:text-4xl lg:text-5xl">
               Play fun <span className="text-primary text-glow-blue">arcade games</span>
             </h1>
             <p className="mb-8 max-w-xl text-lg text-muted-foreground">
               Compete in classic retro games, climb the leaderboards, and win real prizes. Fair play guaranteed.
             </p>
-            <div className="flex flex-wrap gap-4 justify-center">
+            <div className="flex flex-wrap gap-4 justify-center ">
               <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/80 neon-border gap-2" asChild>
                 <Link to="/games">
                   View Games <ArrowRight className="h-4 w-4" />
@@ -316,6 +316,19 @@ const Index = () => {
                 </Link>
               </Button>
             </div>
+
+            {/* Quick Hero Previews Grid (3 cards) */}
+            <FeaturedGamesShowcase
+              games={featuredGames}
+              limit={3}
+              playCounts={playCounts}
+              topPlayers={topPlayers}
+              contestGameMap={contestGameMap}
+              onContestClick={handleContestClick}
+              showAttentionBanner={false}
+              showViewAllButton={false}
+              className="mt-4"
+            />
           </div>
         </div>
       </section>
@@ -372,31 +385,22 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Most Played Games */}
-      <section className="py-20">
-        <div className="container">
-          <div ref={gamesHeaderRef} className="mb-10 flex flex-col items-center text-center">
-            <div className="mb-6 inline-flex items-center rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm">
-              <span className="font-bold text-destructive mr-2">ATTENTION:</span>
-              <span className="text-foreground">For best gameplay experience use a USB controller!</span>
-            </div>
-            <span className="mb-3 inline-block font-arcade text-[10px] text-accent">TOP PICKS</span>
-            <h2 className="font-arcade text-lg text-foreground md:text-xl">
-              Most Played <span className="text-primary text-glow-blue">Games</span>
-            </h2>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredGames.map((game, i) => (
-              <StaggeredGameCard key={game.id} game={game} index={i} playCounts={playCounts} topPlayers={topPlayers} contestGameMap={contestGameMap} onContestClick={handleContestClick} />
-            ))}
-          </div>
-          <div className="mt-10 text-center">
-            <Button variant="outline" className="border-primary text-primary hover:bg-primary/10" asChild>
-              <Link to="/games">View All Games <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+      {/* Most Played Games Showcase (Original Lower Location - 6 cards) */}
+      <FeaturedGamesShowcase
+        games={featuredGames}
+        limit={6}
+        playCounts={playCounts}
+        topPlayers={topPlayers}
+        contestGameMap={contestGameMap}
+        onContestClick={handleContestClick}
+        badge="TOP PICKS"
+        title={<h2 className="font-arcade text-lg text-foreground md:text-xl">
+          Most Played <span className="text-primary text-glow-blue">Games</span>
+        </h2>}
+        showAttentionBanner={false}
+        showViewAllButton={true}
+        className="py-20"
+      />
 
       {/* Leaderboard */}
       <section className="border-t border-border/30 bg-secondary/20 py-20">
