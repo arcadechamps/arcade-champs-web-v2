@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { fetchAndCachePreview, getCachedPreview } from "@/lib/previewCache";
 
-const STORAGE_BASE = "https://vppcnlzbpovswfjbdmpm.supabase.co/storage/v1/object/public";
+const STORAGE_BASE = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/storage/v1/object/public`;
 
 const thumbUrl = (path: string, w = 400, h = 225) =>
   `${STORAGE_BASE}/game-thumbnails/${path}?width=${w}&height=${h}&resize=cover&quality=75`;
