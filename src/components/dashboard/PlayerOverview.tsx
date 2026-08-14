@@ -312,7 +312,7 @@ const PlayerOverview = ({ sessions, contests, wallet, transactions = [], games =
                   <div>
                     <p className="text-sm font-medium text-foreground">{c.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Fee: ${(c.session_fee_cents / 100).toFixed(2)} · {Math.floor(c.session_duration_seconds / 60)}min
+                      Fee: {c.session_fee_cents === 0 ? "Free" : `$${(c.session_fee_cents / 100).toFixed(2)}`} · {Math.floor(c.session_duration_seconds / 60)}min
                     </p>
                   </div>
                   {c.ends_at && (

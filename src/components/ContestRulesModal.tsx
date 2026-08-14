@@ -15,6 +15,7 @@ interface ContestRulesModalProps {
   contestTitle: string;
   durationSeconds: number;
   feeCents: number;
+  isAdmin?: boolean;
   isDeducting?: boolean;
   deductError?: string | null;
 }
@@ -26,18 +27,19 @@ const ContestRulesModal = ({
   contestTitle,
   durationSeconds,
   feeCents,
+  isAdmin = false,
   isDeducting = false,
   deductError = null,
 }: ContestRulesModalProps) => {
   const [dontRemind, setDontRemind] = useState(false);
-  const isPaidContest = feeCents > 0;
+  const isPaidContest = !isAdmin && feeCents > 0;
   const minutes = Math.floor(durationSeconds / 60);
   const seconds = durationSeconds % 60;
   const timeLabel = seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes} minutes`;
 
   const handleAccept = async () => {
-    // Only persist the "don't remind me" preference for free contests.
-    // Paid contests always require explicit confirmation before charging.
+    // Only persist the "don't remind me" preference for free contests or admin users.
+    // Paid contests for non-admin users always require explicit confirmation before charging.
     if (dontRemind && !isPaidContest) localStorage.setItem(STORAGE_KEY, "true");
     await onAccept();
   };
@@ -85,7 +87,20 @@ const ContestRulesModal = ({
             </div>
           </div>
 
-          {isPaidContest && (
+          {isAdmin && feeCents > 0 ? (
+            <div className="flex items-start gap-3 rounded-lg border border-neon-pink/30 bg-neon-pink/10 p-3">
+              <Shield className="mt-0.5 h-4 w-4 shrink-0 text-neon-pink" />
+              <div>
+                <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <span>Entry Fee: <span className="line-through text-muted-foreground">${(feeCents / 100).toFixed(2)}</span></span>
+                  <span className="rounded bg-neon-pink/20 px-1.5 py-0.5 text-[10px] font-bold text-neon-pink">Admin Free Access</span>
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  As an administrator, you enter and play all contests for free without any charges.
+                </p>
+              </div>
+            </div>
+          ) : isPaidContest ? (
             <div className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-500" />
               <div>
@@ -97,7 +112,7 @@ const ContestRulesModal = ({
                 </p>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Inline error for insufficient balance or deduction failure */}
           {deductError && (
@@ -107,8 +122,8 @@ const ContestRulesModal = ({
           )}
         </div>
 
-        {/* Only show "don't remind me" for free contests */}
-        {!isPaidContest && (
+        {/* Show "don't remind me" for free contests or admin users */}
+        {(!isPaidContest || isAdmin) && (
           <div className="flex items-center gap-2 py-1">
             <Checkbox id="dont-remind" checked={dontRemind} onCheckedChange={(v) => setDontRemind(!!v)} />
             <label htmlFor="dont-remind" className="text-[11px] text-muted-foreground cursor-pointer select-none">

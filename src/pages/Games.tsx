@@ -196,23 +196,9 @@ const Games = () => {
       toast.success("You've joined the contest!");
     }
 
-    const { data: wallet } = await supabase.from("wallets").select("balance_cents").eq("user_id", user.id).maybeSingle();
-    if ((wallet?.balance_cents ?? 0) < contest.session_fee_cents) {
-      toast.error(`Insufficient balance. Need $${(contest.session_fee_cents / 100).toFixed(2)}`);
-      return;
-    }
-
-    const { error: txError } = await supabase.from("wallet_transactions").insert({
-      user_id: user.id, type: "session_fee" as const, amount_cents: contest.session_fee_cents,
-      status: "succeeded" as const, contest_id: contest.id,
-    });
-    if (handleSupabaseError(txError, "Contest fee")) return;
-
-    queryClient.invalidateQueries({ queryKey: ["wallet-balance", user.id] });
-    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-    toast.success(`Fee deducted. Good luck!`);
+    // Fee deduction & rules confirmation happen in ContestPlay via ContestRulesModal
     navigate(`/contest-play/${contestSlugVal}/${gameSlug}`);
-  }, [user, contestById, navigate, queryClient]);
+  }, [user, contestById, navigate]);
 
 
 

@@ -67,3 +67,24 @@ export function timeLeft(dateStr: string): string {
 export function formatCents(cents: number): string {
   return (cents / 100).toFixed(2);
 }
+
+/**
+ * Parses an entry fee input value in cents.
+ * Explicitly handles 0 cents without falling back to default fee.
+ */
+export function parseFeeInput(value: string | null | undefined, defaultCents = 100): number {
+  if (value === null || value === undefined) return defaultCents;
+  const parsedFee = parseInt(value, 10);
+  return isNaN(parsedFee) ? defaultCents : Math.max(0, parsedFee);
+}
+
+/**
+ * Formats a contest entry fee in cents for UI display.
+ * Returns "Free" when fee is 0 or when user is an admin.
+ */
+export function formatContestFee(feeCents: number, includeFeeLabel = false, isAdmin = false): string {
+  if (isAdmin) return includeFeeLabel ? "Free (Admin)" : "Free";
+  if (feeCents === 0) return "Free";
+  const formatted = `$${(feeCents / 100).toFixed(2)}`;
+  return includeFeeLabel ? `${formatted} fee` : formatted;
+}
