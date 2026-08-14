@@ -157,7 +157,7 @@ const PlayerContests = ({ contests, sessions, winners = [], profiles = [] }: Pla
                     <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-neon-pink" /> Best: {bestScore.toLocaleString()}</span>
                     <span className="flex items-center gap-1"><Gamepad2 className="h-3 w-3 text-primary" /> {mySessions.length} sessions</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {contest.session_duration_seconds / 60}min</span>
-                    <span>Fee: ${(contest.session_fee_cents / 100).toFixed(2)}</span>
+                    <span>Fee: {contest.session_fee_cents === 0 ? "Free" : `$${(contest.session_fee_cents / 100).toFixed(2)}`}</span>
                   </div>
                   {winner && contest.status === "closed" && (
                     <div className="mt-3 flex items-center gap-2 text-xs">

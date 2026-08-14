@@ -255,10 +255,13 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
     const isoEnd = datetimeLocalToIso(endsAt);
     const status = deriveStatusFromDates(isoStart, isoEnd);
 
+    const parsedFee = parseInt(fd.get("fee") as string, 10);
+    const session_fee_cents = isNaN(parsedFee) ? 100 : Math.max(0, parsedFee);
+
     const { data: contestData, error } = await supabase.from("contests").insert({
       title, slug, status,
       description: (fd.get("description") as string) || null,
-      session_fee_cents: parseInt(fd.get("fee") as string) || 100,
+      session_fee_cents,
       session_duration_seconds: (parseInt(fd.get("duration") as string) || 10) * 60,
       prize_description: createPrizeType === "cash" ? null : (fd.get("prize_description") as string) || null,
       prize_cents: createPrizeType === "physical" ? 0 : Math.round(parseFloat(fd.get("prize") as string || "0") * 100),
@@ -321,11 +324,14 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
     const isoEnd = datetimeLocalToIso(endsAt);
     const status = deriveStatusFromDates(isoStart, isoEnd);
 
+    const parsedFee = parseInt(fd.get("fee") as string, 10);
+    const session_fee_cents = isNaN(parsedFee) ? 100 : Math.max(0, parsedFee);
+
     const { error } = await supabase.from("contests").update({
       title: fd.get("title") as string,
       description: (fd.get("description") as string) || null,
       status,
-      session_fee_cents: parseInt(fd.get("fee") as string) || 100,
+      session_fee_cents,
       session_duration_seconds: (parseInt(fd.get("duration") as string) || 10) * 60,
       prize_description: editPrizeType === "cash" ? null : (fd.get("prize_description") as string) || null,
       prize_cents: editPrizeType === "physical" ? 0 : Math.round(parseFloat(fd.get("prize") as string || "0") * 100),
@@ -611,7 +617,7 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                       </div>
                       {contest.description && <p className="mb-3 text-xs text-muted-foreground">{contest.description}</p>}
                       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-neon-pink" /> Fee: ${(contest.session_fee_cents / 100).toFixed(2)}</span>
+                        <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-neon-pink" /> Fee: {contest.session_fee_cents === 0 ? "Free" : `$${(contest.session_fee_cents / 100).toFixed(2)}`}</span>
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {contest.session_duration_seconds / 60}min</span>
                         {contest.prize_cents > 0 && (
                           <span className="flex items-center gap-1 text-neon-green"><Gift className="h-3 w-3" /> Prize: ${(contest.prize_cents / 100).toLocaleString()}</span>

@@ -257,7 +257,7 @@ const DashboardContestGames = () => {
                         <Badge variant="outline" className={statusColors[contest.status] ?? ""}>{contest.status}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        <span className="flex items-center gap-1 inline-flex"><DollarSign className="h-3 w-3" /> ${(contest.session_fee_cents / 100).toFixed(2)} fee</span>
+                        <span className="flex items-center gap-1 inline-flex"><DollarSign className="h-3 w-3" /> {contest.session_fee_cents === 0 ? "Free" : `$${(contest.session_fee_cents / 100).toFixed(2)} fee`}</span>
                         <span className="mx-2">·</span>
                         {contest.session_duration_seconds / 60}min
                       </p>

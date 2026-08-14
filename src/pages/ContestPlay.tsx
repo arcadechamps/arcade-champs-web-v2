@@ -42,7 +42,8 @@ const ContestPlay = () => {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "vppcnlzbpovswfjbdmpm";
   const BASE_URL = import.meta.env.VITE_SUPABASE_URL || `https://${projectId}.supabase.co`;
   const { contestSlug, gameId } = useParams<{ contestSlug: string; gameId: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isAdmin = profile?.is_admin ?? false;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const gamePlayerRef = useRef<GamePlayerHandle>(null);
@@ -55,9 +56,9 @@ const ContestPlay = () => {
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
-  // Always show rules for paid contests so user explicitly confirms the fee.
-  // For free contests, respect the "don't remind me" localStorage preference.
-  const isFreeContest = (contest?.session_fee_cents ?? 1) === 0;
+  // Always show rules for paid contests so non-admin users explicitly confirm the fee.
+  // For free contests or admin users, respect the "don't remind me" localStorage preference.
+  const isFreeContest = isAdmin || (contest?.session_fee_cents ?? 1) === 0;
   const dismissed = isFreeContest && isRulesDismissed();
   const [showRules, setShowRules] = useState(true); // initialised properly once contest loads
   const [rulesInitialised, setRulesInitialised] = useState(false);
@@ -101,9 +102,9 @@ const ContestPlay = () => {
       if (contestRes.data) {
         setTimeRemaining(contestRes.data.session_duration_seconds);
 
-        // Determine whether to show rules based on fee + localStorage preference
+        // Determine whether to show rules based on fee + localStorage preference + admin status
         if (!rulesInitialised) {
-          const free = (contestRes.data.session_fee_cents ?? 0) === 0;
+          const free = isAdmin || (contestRes.data.session_fee_cents ?? 0) === 0;
           const skip = free && isRulesDismissed();
           setShowRules(!skip);
           setGameStarted(skip);
@@ -213,7 +214,8 @@ const ContestPlay = () => {
 
     const feeCents = contest.session_fee_cents ?? 0;
 
-    if (feeCents > 0 && !feeDeductedRef.current) {
+    // Admin users play for free — only non-admin users pay entry fees
+    if (!isAdmin && feeCents > 0 && !feeDeductedRef.current) {
       setIsDeducting(true);
       setDeductError(null);
 
@@ -258,6 +260,8 @@ const ContestPlay = () => {
       queryClient.invalidateQueries({ queryKey: ["wallet-balance", user.id] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", user.id] });
       toast.success(`$${(feeCents / 100).toFixed(2)} entry fee deducted. Good luck!`);
+    } else if (isAdmin && feeCents > 0) {
+      toast.success("Admin free entry activated. Good luck!");
     }
 
     // Play insert-coin sound effect on successful session start
@@ -269,7 +273,7 @@ const ContestPlay = () => {
 
     setShowRules(false);
     setGameStarted(true);
-  }, [user, contest, queryClient]);
+  }, [user, contest, isAdmin, queryClient]);
 
   // Upload screenshot via edge function, then extract score
   const handleScreenshot = useCallback(
@@ -736,6 +740,7 @@ const ContestPlay = () => {
         contestTitle={contest.title}
         durationSeconds={contest.session_duration_seconds}
         feeCents={contest.session_fee_cents}
+        isAdmin={isAdmin}
         isDeducting={isDeducting}
         deductError={deductError}
       />
