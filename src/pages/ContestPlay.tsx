@@ -80,6 +80,7 @@ const ContestPlay = () => {
   const userRef = useRef(user);
   userRef.current = user;
   const submitVerdictRef = useRef<(score: number) => Promise<void>>(async () => { });
+  const safetyFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Input log for anti-cheat evidence
   const inputLogRef = useRef<Array<{ t: string; k?: string; c?: string; b?: number; ts: number }>>([]);
@@ -308,6 +309,12 @@ const ContestPlay = () => {
       isProcessingScreenshotRef.current = true;
       setExtractingScore(true);
 
+      // Cancel the safety fallback since we received a valid screenshot
+      if (safetyFallbackRef.current) {
+        clearTimeout(safetyFallbackRef.current);
+        safetyFallbackRef.current = null;
+      }
+
       // 0. Stop and upload the gameplay recording NOW that screenshot is done
       // This ensures the 2-second pause delay is included in the video
       gamePlayerRef.current?.stopRecording().then(async (recordingFile) => {
@@ -462,12 +469,45 @@ const ContestPlay = () => {
       timerRef.current = null;
     }
 
-    // Send pause signal and wait 2 seconds for screenshot
+    // Show extraction UI immediately so the user isn't stuck on "Preparing..."
+    setExtractingScore(true);
+    setTimeUp(true);
+
+    // Send pause signal and wait for screenshot from iframe/canvas fallback
     gamePlayerRef.current?.endSessionAndCapture();
 
-    // Transition UI to the existing end-of-session overlay
-    setTimeUp(true);
-  }, [gameStarted, timeUp]);
+    // Safety fallback: if no screenshot arrives within 6s, close session gracefully
+    safetyFallbackRef.current = setTimeout(async () => {
+      if (isProcessingScreenshotRef.current || extractedScore !== null) return;
+      console.warn("[ContestPlay] Safety fallback — no screenshot received, closing session");
+
+      const currentSessionId = sessionIdRef.current;
+      const currentUser = userRef.current;
+
+      if (currentSessionId) {
+        await supabase
+          .from("game_sessions")
+          .update({
+            score: 0,
+            status: "ended" as const,
+            end_timestamp_ms: Date.now(),
+            ended_at: new Date().toISOString(),
+          })
+          .eq("session_id", currentSessionId);
+      }
+
+      await submitVerdictRef.current(0);
+
+      if (currentUser) {
+        queryClient.invalidateQueries({ queryKey: ["dashboard", currentUser.id] });
+      }
+
+      setExtractedScore(0);
+      setExtractingScore(false);
+      isProcessingScreenshotRef.current = false;
+      toast.error("Score extraction timed out — session ended with score 0");
+    }, 6000);
+  }, [gameStarted, timeUp, extractedScore, queryClient]);
 
   // Countdown timer — capture screenshots at intervals and right before time ends
   useEffect(() => {
@@ -490,6 +530,7 @@ const ContestPlay = () => {
           // Capture screenshot before showing time-up overlay
           if (!screenshotTakenRef.current) {
             screenshotTakenRef.current = true;
+            setExtractingScore(true);
             gamePlayerRef.current?.endSessionAndCapture();
           }
           // Anti-cheat verdict is submitted after score extraction (see handleScreenshot callbacks)
@@ -516,6 +557,10 @@ const ContestPlay = () => {
     screenshotsTakenRef.current.clear();
     isProcessingScreenshotRef.current = false;
     feeDeductedRef.current = false;
+    if (safetyFallbackRef.current) {
+      clearTimeout(safetyFallbackRef.current);
+      safetyFallbackRef.current = null;
+    }
     inputLogRef.current = [];
     sessionStartMsRef.current = 0;
     

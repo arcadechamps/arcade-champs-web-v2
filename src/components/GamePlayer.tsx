@@ -55,6 +55,10 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
     const onGamepadEventRef = useRef(onGamepadEvent);
     onGamepadEventRef.current = onGamepadEvent;
 
+    // Tracks whether the iframe has responded with an emulator_screenshot
+    const screenshotReceivedRef = useRef(false);
+    const canvasFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // RecordRTC refs
     const recorderRef = useRef<RecordRTC | null>(null);
     const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -132,10 +136,47 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
         );
       },
       endSessionAndCapture: () => {
+        screenshotReceivedRef.current = false;
+
+        // Ask the iframe to pause and take a screenshot
         iframeRef.current?.contentWindow?.postMessage(
           { type: "END_SESSION_PAUSE" },
           "*"
         );
+
+        // Direct canvas fallback if iframe fails to respond within 2.5s
+        if (canvasFallbackTimerRef.current) {
+          clearTimeout(canvasFallbackTimerRef.current);
+        }
+        canvasFallbackTimerRef.current = setTimeout(() => {
+          if (screenshotReceivedRef.current) return;
+          console.warn("[GamePlayer] Iframe did not respond — attempting direct canvas capture");
+
+          const gameCanvas = findGameCanvas();
+          if (!gameCanvas || !onScreenshotRef.current) return;
+
+          try {
+            const dataUrl = gameCanvas.toDataURL("image/png");
+            if (!dataUrl || dataUrl.length < 500) {
+              console.warn("[GamePlayer] Direct canvas capture produced empty data");
+              return;
+            }
+
+            const byteString = atob(dataUrl.split(",")[1]);
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+              ia[i] = byteString.charCodeAt(i);
+            }
+            const blob = new Blob([ab], { type: "image/png" });
+            const file = new File([blob], `screenshot_fallback_${Date.now()}.png`, {
+              type: "image/png",
+            });
+            onScreenshotRef.current(file, 3);
+          } catch (err) {
+            console.error("[GamePlayer] Direct canvas fallback error:", err);
+          }
+        }, 2500);
       },
       startRecording: () => {
         // Poll for the game canvas before creating the stream.
@@ -251,6 +292,7 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
           event.data?.data &&
           onScreenshotRef.current
         ) {
+          screenshotReceivedRef.current = true;
           try {
             const base64Data: string = event.data.data;
             const byteString = atob(base64Data.split(",")[1]);
@@ -283,9 +325,12 @@ const GamePlayer = forwardRef<GamePlayerHandle, GamePlayerProps>(
       return () => window.removeEventListener("message", handler);
     }, []);
 
-    // Cleanup recording on unmount
+    // Cleanup recording and fallback timers on unmount
     useEffect(() => {
       return () => {
+        if (canvasFallbackTimerRef.current) {
+          clearTimeout(canvasFallbackTimerRef.current);
+        }
         if (captureIntervalRef.current) {
           clearInterval(captureIntervalRef.current);
         }
