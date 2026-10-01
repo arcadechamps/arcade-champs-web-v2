@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
+import { Turnstile } from "@marsidev/react-turnstile";
+
+const TURNSTILE_SITEKEY = import.meta.env.VITE_TURNSTILE_SITEKEY as string;
+
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -26,7 +29,8 @@ const formSchema = z.object({
 
 export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { executeRecaptcha } = useGoogleReCaptcha();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<any>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -41,14 +45,12 @@ export function ContactForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      if (!executeRecaptcha) {
-        throw new Error("Security verification failed to load. Please refresh the page.");
+      if (!captchaToken) {
+        throw new Error("Security verification is still loading. Please wait a moment and try again.");
       }
-      
-      const recaptchaToken = await executeRecaptcha("contact_form");
 
       const { error } = await supabase.functions.invoke("send-contact-email", {
-        body: { ...values, recaptchaToken },
+        body: { ...values, captchaToken },
       });
 
       if (error) {
@@ -65,6 +67,9 @@ export function ContactForm() {
       });
       console.error("Contact form error:", error);
     } finally {
+      // Always reset the widget after a submit attempt — tokens are single-use
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
       setIsSubmitting(false);
     }
   }
@@ -128,10 +133,18 @@ export function ContactForm() {
             </FormItem>
           )}
         />
+        <Turnstile
+          ref={turnstileRef}
+          siteKey={TURNSTILE_SITEKEY}
+          onSuccess={(token) => setCaptchaToken(token)}
+          onExpire={() => setCaptchaToken(null)}
+          onError={() => setCaptchaToken(null)}
+          options={{ size: "flexible" }}
+        />
         <Button 
           type="submit" 
           className="w-full relative overflow-hidden group" 
-          disabled={isSubmitting}
+          disabled={isSubmitting || !captchaToken}
         >
           <div className="absolute inset-0 w-1/4 h-full bg-white/20 skew-x-[-20deg] group-hover:animate-shine translate-x-[-150%]"></div>
           {isSubmitting ? "Sending..." : "Send Message"}

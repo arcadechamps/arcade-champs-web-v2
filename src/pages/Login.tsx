@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { PageMeta } from "@/components/PageMeta";
@@ -10,6 +10,10 @@ import { Loader2 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { Turnstile } from "@marsidev/react-turnstile";
+
+const TURNSTILE_SITEKEY = import.meta.env.VITE_TURNSTILE_SITEKEY as string;
+
 
 const Login = () => {
   const { signIn } = useAuth();
@@ -17,19 +21,30 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<any>(null);
+
+  const resolveErrorMessage = (message: string): string => {
+    if (message.toLowerCase().includes("captcha")) return "Verification failed, please try again.";
+    return message;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(email, password, captchaToken ?? undefined);
+    // Always reset the widget after a submit attempt — tokens are single-use
+    turnstileRef.current?.reset();
+    setCaptchaToken(null);
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(resolveErrorMessage(error.message));
     } else {
       toast.success("Logged in!");
       navigate("/dashboard");
     }
   };
+
 
   return (
     <Layout>
@@ -58,7 +73,15 @@ const Login = () => {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full neon-border" disabled={loading}>
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITEKEY}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => setCaptchaToken(null)}
+                options={{ size: "flexible" }}
+              />
+              <Button type="submit" className="w-full neon-border" disabled={loading || !captchaToken}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
               </Button>

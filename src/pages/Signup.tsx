@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { PageMeta } from "@/components/PageMeta";
@@ -10,6 +10,16 @@ import { Loader2 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { Turnstile } from "@marsidev/react-turnstile";
+
+const TURNSTILE_SITEKEY = import.meta.env.VITE_TURNSTILE_SITEKEY as string;
+
+
+const SIGNUP_ERROR_MESSAGES: Record<string, string> = {
+  disposable_email: "Please use a permanent email address.",
+  rate_limited: "Too many signup attempts. Please try again later.",
+  signup_blocked: "Something went wrong, please try again.",
+};
 
 const Signup = () => {
   const { signUp } = useAuth();
@@ -18,6 +28,16 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [honeypotValue, setHoneypotValue] = useState("");
+  const turnstileRef = useRef<any>(null);
+  // Set once on mount — measures how long the user took to fill the form
+  const formStartedAt = useRef(Date.now());
+
+  const resolveErrorMessage = (message: string): string => {
+    if (message.toLowerCase().includes("captcha")) return "Verification failed, please try again.";
+    return SIGNUP_ERROR_MESSAGES[message] ?? message;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,15 +46,27 @@ const Signup = () => {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(email, password, displayName);
+    const formFillMs = Math.round(Date.now() - formStartedAt.current);
+    const { error } = await signUp(
+      email,
+      password,
+      displayName,
+      captchaToken ?? undefined,
+      honeypotValue,
+      formFillMs
+    );
+    // Always reset the widget after a submit — tokens are single-use
+    turnstileRef.current?.reset();
+    setCaptchaToken(null);
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(resolveErrorMessage(error.message));
     } else {
       toast.success("Account created! Check your email to confirm, or sign in now.");
       navigate("/login");
     }
   };
+
 
   return (
     <Layout>
@@ -62,7 +94,38 @@ const Signup = () => {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full neon-border" disabled={loading}>
+              {/* Honeypot field — visually hidden but accessible to bots */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "-10000px",
+                  top: "auto",
+                  width: 1,
+                  height: 1,
+                  overflow: "hidden",
+                }}
+                aria-hidden="true"
+              >
+                <label htmlFor="website">Website</label>
+                <input
+                  id="website"
+                  name="website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={honeypotValue}
+                  onChange={(e) => setHoneypotValue(e.target.value)}
+                />
+              </div>
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITEKEY}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => setCaptchaToken(null)}
+                options={{ size: "flexible" }}
+              />
+              <Button type="submit" className="w-full neon-border" disabled={loading || !captchaToken}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account
               </Button>
