@@ -78,7 +78,31 @@ const Signup = () => {
             <CardTitle className="font-arcade text-sm text-primary text-glow-blue">SIGN UP</CardTitle>
             <CardDescription>Create your Arcade Champs account</CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmit}>
+          {/* position:relative anchors the off-screen honeypot absolutely within the form */}
+          <form onSubmit={handleSubmit} style={{ position: "relative" }}>
+            {/* Honeypot field — bots fill every visible-looking field; real users never touch this */}
+            <div
+              style={{
+                position: "absolute",
+                left: "-10000px",
+                top: "auto",
+                width: 1,
+                height: 1,
+                overflow: "hidden",
+              }}
+              aria-hidden="true"
+            >
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                name="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={honeypotValue}
+                onChange={(e) => setHoneypotValue(e.target.value)}
+              />
+            </div>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="displayName">Display Name</Label>
@@ -94,29 +118,6 @@ const Signup = () => {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              {/* Honeypot field — visually hidden but accessible to bots */}
-              <div
-                style={{
-                  position: "absolute",
-                  left: "-10000px",
-                  top: "auto",
-                  width: 1,
-                  height: 1,
-                  overflow: "hidden",
-                }}
-                aria-hidden="true"
-              >
-                <label htmlFor="website">Website</label>
-                <input
-                  id="website"
-                  name="website"
-                  type="text"
-                  tabIndex={-1}
-                  autoComplete="off"
-                  value={honeypotValue}
-                  onChange={(e) => setHoneypotValue(e.target.value)}
-                />
-              </div>
               <Turnstile
                 ref={turnstileRef}
                 siteKey={TURNSTILE_SITEKEY}
