@@ -4,6 +4,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const json = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+// Escape user input before putting it into the HTML email
+const escapeHtml = (s: string) =>
+  String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -14,48 +29,42 @@ Deno.serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("[send-contact-email] Missing RESEND_API_KEY");
-      return new Response(
-        JSON.stringify({ error: "Server Configuration Error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({ error: "Server Configuration Error" }, 500);
     }
 
     const body = await req.json();
-    const { name, email, subject, message, recaptchaToken } = body;
+    const { name, email, subject, message } = body;
+    // Frontend sends the Cloudflare Turnstile token as captchaToken
+    const captchaToken = body.captchaToken ?? body.recaptchaToken;
 
-    if (!name || !email || !message || !recaptchaToken) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields or security token" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!name || !email || !message || !captchaToken) {
+      return json({ error: "Missing required fields or security token" }, 400);
     }
 
-    // Verify reCAPTCHA token
-    const recaptchaSecret = Deno.env.get("RECAPTCHA_SECRET_KEY");
-    if (!recaptchaSecret) {
-      console.error("[send-contact-email] Missing RECAPTCHA_SECRET_KEY");
-      return new Response(
-        JSON.stringify({ error: "Server Configuration Error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Verify Cloudflare Turnstile token
+    const turnstileSecret = Deno.env.get("TURNSTILE_SECRET_KEY");
+    if (!turnstileSecret) {
+      console.error("[send-contact-email] Missing TURNSTILE_SECRET_KEY");
+      return json({ error: "Server Configuration Error" }, 500);
     }
 
-    const verificationResponse = await fetch("https://www.google.com/recaptcha/api/siteverify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `secret=${encodeURIComponent(recaptchaSecret)}&response=${encodeURIComponent(recaptchaToken)}`,
-    });
+    const form = new URLSearchParams();
+    form.append("secret", turnstileSecret);
+    form.append("response", String(captchaToken));
+    const ip =
+      req.headers.get("cf-connecting-ip") ??
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (ip) form.append("remoteip", ip);
 
+    const verificationResponse = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      { method: "POST", body: form },
+    );
     const verificationData = await verificationResponse.json();
 
-    if (!verificationData.success || verificationData.score < 0.5) {
-      console.warn("[send-contact-email] reCAPTCHA verification failed:", verificationData);
-      return new Response(
-        JSON.stringify({ error: "Security check failed. Please try again." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!verificationData.success) {
+      console.warn("[send-contact-email] Turnstile verification failed:", verificationData["error-codes"]);
+      return json({ error: "Security check failed. Please try again." }, 400);
     }
 
     // Call Resend API
@@ -72,10 +81,10 @@ Deno.serve(async (req) => {
         subject: subject || `New Contact Form Submission from ${name}`,
         html: `
           <h3>New Message from Arcade Champs Contact Form</h3>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+          <p><strong>Email:</strong> ${escapeHtml(email)}</p>
           <hr />
-          <p>${message.replace(/\n/g, "<br>")}</p>
+          <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
         `,
       }),
     });
@@ -84,21 +93,12 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       console.error("[send-contact-email] Resend API error:", data);
-      return new Response(
-        JSON.stringify({ error: "Failed to send email", details: data }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return json({ error: "Failed to send email", details: data }, 500);
     }
 
-    return new Response(
-      JSON.stringify({ success: true, data }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({ success: true, data }, 200);
   } catch (err) {
     console.error("[send-contact-email] Unexpected error:", err);
-    return new Response(
-      JSON.stringify({ error: "Internal error", details: String(err) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({ error: "Internal error", details: String(err) }, 500);
   }
 });
