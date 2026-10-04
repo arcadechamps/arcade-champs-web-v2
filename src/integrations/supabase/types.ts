@@ -536,7 +536,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      security_logs: {
+        Row: {
+          id: string
+          created_at: string
+          event: string
+          blocked: boolean
+          reason: string | null
+          provider: string | null
+          email_domain: string | null
+          ip_address: string | null
+          fill_ms: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_contest_leaderboard: {
@@ -599,6 +612,52 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      my_reverify_status: { Args: never; Returns: boolean }
+      admin_dormant_summary: { Args: never; Returns: Json }
+      admin_signup_metrics: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          day: string
+          total: number
+          allowed: number
+          blocked: number
+          disposable_email: number
+          honeypot: number
+          too_fast: number
+          missing_fields: number
+          rate_limited: number
+        }[]
+      }
+      admin_list_users: {
+        Args: { p_filter?: string; p_search?: string; p_limit?: number; p_offset?: number }
+        Returns: {
+          user_id: string
+          email: string
+          username: string | null
+          display_name: string | null
+          created_at: string
+          last_sign_in_at: string | null
+          days_inactive: number | null
+          email_confirmed: boolean
+          is_dormant: boolean
+          reverify_required: boolean
+          logins_30d: number
+          logins_90d: number
+          reminder_count: number
+          last_reminder_at: string | null
+          reminder_pending: boolean
+          dormant_since: string | null
+          reverified_at: string | null
+          is_admin: boolean
+          total_count: number
+        }[]
+      }
+      admin_send_reminder: { Args: { p_user_ids: string[] }; Returns: Json }
+      admin_get_reminder_settings: { Args: never; Returns: Json }
+      admin_set_reminder_settings: {
+        Args: { p_reminders_enabled?: boolean; p_days_between?: number; p_max_reminders?: number }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

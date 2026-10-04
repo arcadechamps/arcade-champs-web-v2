@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { KeyRound, Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { supabase } from "@/integrations/supabase/client";
 import { handleNetworkError } from "@/lib/network-error-handler";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+const TURNSTILE_SITEKEY = import.meta.env.VITE_TURNSTILE_SITEKEY as string;
+
+const isCaptchaError = (error: { message?: string; code?: string }) =>
+  error.code === "captcha_failed" || (error.message ?? "").toLowerCase().includes("captcha");
 
 const passwordSchema = z
   .object({
@@ -36,6 +42,13 @@ const ChangePasswordCard = () => {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<any>(null);
+
+  const resetCaptcha = () => {
+    turnstileRef.current?.reset();
+    setCaptchaToken(null);
+  };
 
   const form = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
@@ -57,10 +70,16 @@ const ChangePasswordCard = () => {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: values.current_password,
+        options: { captchaToken: captchaToken ?? undefined },
       });
+      resetCaptcha();
 
       if (signInError) {
-        form.setError("current_password", { message: "Current password is incorrect" });
+        if (isCaptchaError(signInError)) {
+          toast.error("Verification failed, please try again.");
+        } else {
+          form.setError("current_password", { message: "Current password is incorrect" });
+        }
         setSaving(false);
         return;
       }
@@ -186,7 +205,15 @@ const ChangePasswordCard = () => {
                 </FormItem>
               )}
             />
-            <Button type="submit" disabled={saving} className="w-full sm:w-auto">
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={TURNSTILE_SITEKEY}
+              onSuccess={(token) => setCaptchaToken(token)}
+              onExpire={() => setCaptchaToken(null)}
+              onError={() => setCaptchaToken(null)}
+              options={{ size: "flexible" }}
+            />
+            <Button type="submit" disabled={saving || !captchaToken} className="w-full sm:w-auto">
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Password
             </Button>

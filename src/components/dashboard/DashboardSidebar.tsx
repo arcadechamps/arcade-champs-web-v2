@@ -4,6 +4,7 @@ import {
   Gamepad2,
   Users,
   ShieldAlert,
+  ShieldCheck,
   Mail,
   MailPlus,
   Wallet,
@@ -47,6 +48,7 @@ const adminItems: MenuItem[] = [
   { key: "leaderboards", label: "Leaderboards", icon: Medal },
   { key: "newsletter", label: "Newsletter", icon: Mail },
   { key: "emails", label: "Email Manager", icon: MailPlus },
+  { key: "security", label: "Platform Security", icon: ShieldCheck },
 ];
 
 const playerItems: MenuItem[] = [
@@ -91,10 +93,10 @@ const DashboardSidebar = ({ isAdmin, activeSection }: DashboardSidebarProps) => 
   useHotkeys('shift+3', () => navigate(buildPath(isAdmin, items[2].key)), { preventDefault: true }, [isAdmin, items, navigate]);
   useHotkeys('shift+4', () => navigate(buildPath(isAdmin, items[3].key)), { preventDefault: true }, [isAdmin, items, navigate]);
   useHotkeys('shift+5', () => navigate(buildPath(isAdmin, items[4].key)), { preventDefault: true }, [isAdmin, items, navigate]);
-  useHotkeys('shift+6', () => { if(items[5]) navigate(buildPath(isAdmin, items[5].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
-  useHotkeys('shift+7', () => { if(items[6]) navigate(buildPath(isAdmin, items[6].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
-  useHotkeys('shift+8', () => { if(items[7]) navigate(buildPath(isAdmin, items[7].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
-  useHotkeys('shift+9', () => { if(items[8]) navigate(buildPath(isAdmin, items[8].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+6', () => { if (items[5]) navigate(buildPath(isAdmin, items[5].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+7', () => { if (items[6]) navigate(buildPath(isAdmin, items[6].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+8', () => { if (items[7]) navigate(buildPath(isAdmin, items[7].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
+  useHotkeys('shift+9', () => { if (items[8]) navigate(buildPath(isAdmin, items[8].key)); }, { preventDefault: true }, [isAdmin, items, navigate]);
 
   useHotkeys('shift+b', () => toggleSidebar(), { preventDefault: true }, [toggleSidebar]);
 
