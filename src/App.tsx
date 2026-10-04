@@ -28,6 +28,7 @@ import Leaderboard from "./pages/Leaderboard";
 import LiveLeaderboards from "./pages/LiveLeaderboards";
 import ContactUs from "./pages/ContactUs";
 import VerifyAccount from "./pages/VerifyAccount";
+import GuestRoute from "./components/GuestRoute";
 import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient({
@@ -91,9 +92,9 @@ const App = () => {
                 <Route path="/contest" element={<Contest />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/live-leaderboards" element={<LiveLeaderboards />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+                <Route path="/signup" element={<GuestRoute><Signup /></GuestRoute>} />
+                <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/verify-account" element={<VerifyAccount />} />
                 <Route path="/dashboard/*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
