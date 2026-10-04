@@ -1,4 +1,4 @@
-﻿# Agent Log — Arcade Champs
+# Agent Log — Arcade Champs
 
 ---
 
@@ -32,3 +32,25 @@ Fixed the honeypot field's positioning context in Signup.tsx. The field had been
 **Problem:** The honeypot <div position:absolute left:-10000px> was inside <CardFooter> which has no position:relative — the browser anchors the absolutly-positioned element to the nearest positioned ancestor, which could be the viewport. Functionally it still worked, but the behaviour was undefined and inconsistent.
 
 **Solution:** Added position:relative to the <form> element and moved the honeypot as the first child of <form>, before CardContent/CardFooter. Browser subagent verified via live DOM inspection: exists=true, tabIndex=-1, autoComplete=off, parent position=absolute, parent left=-10000px, parent overflow=hidden. Tab order test confirmed honeypot is NEVER focused (Display Name → Email → Password → Turnstile → Button).
+
+---
+
+## 2026-10-04 | Bot Protection + Dormant Accounts Frontend
+
+**What was implemented:** ChangePasswordCard now sends a single-use Turnstile token with the current-password re-auth; new /verify-account OTP screen plus a my_reverify_status guard in ProtectedRoute (useReverifyStatus hook); admin Security section (summary cards, signup chart, security log, players table with reminders, reminder settings, CAPTCHA placeholder) via useAdminSecurity hooks; .example.env switched to VITE_TURNSTILE_SITEKEY and react-google-recaptcha-v3 removed.
+
+**Solution:** Wired Turnstile into the re-auth call, added the OTP flow and guard, and built the admin screens against the backend RPCs. Vitest passes (86 tests); manual testing with a flagged test account is still pending.
+
+---
+
+## 2026-10-04 14:20 | Fix Vite Dev Server ENOENT Error on Stale reCAPTCHA Dependency
+
+**What was implemented:**
+Cleared the stale Vite pre-bundled dependency cache in `node_modules/.vite` and restarted the Vite development server with `--force`.
+
+**Problem:**
+Starting the Vite dev server failed with `Error: ENOENT: no such file or directory, open '...node_modules\react-google-recaptcha-v3\dist\react-google-recaptcha-v3.esm.js'` because `react-google-recaptcha-v3` had been uninstalled during Turnstile migration, but Vite's cached dependency metadata (`node_modules/.vite/deps/_metadata.json`) still referenced its deleted entry point.
+
+**Solution:**
+Purged the obsolete `node_modules/.vite` cache directory and executed `bun run dev -- --force` to regenerate a clean dependency cache reflecting current packages. Verified successful production build (`bun run build`) and live dev server page render at `http://localhost:8080/`.
+

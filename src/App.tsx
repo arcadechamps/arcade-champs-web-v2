@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useReverifyStatus } from "@/hooks/useReverifyStatus";
 import { handleNetworkError, setupNetworkListeners } from "@/lib/network-error-handler";
 import { useEffect } from "react";
 import Index from "./pages/Index";
@@ -26,6 +27,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Leaderboard from "./pages/Leaderboard";
 import LiveLeaderboards from "./pages/LiveLeaderboards";
 import ContactUs from "./pages/ContactUs";
+import VerifyAccount from "./pages/VerifyAccount";
 import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient({
@@ -55,8 +57,14 @@ queryClient.getQueryCache().config.onError = (error) => {
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const { isLoading: reverifyLoading, reverifyRequired } = useReverifyStatus(user?.id);
+  const location = useLocation();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (reverifyLoading) return null;
+  if (reverifyRequired) {
+    return <Navigate to="/verify-account" replace state={{ from: location }} />;
+  }
   return <>{children}</>;
 };
 
@@ -87,6 +95,7 @@ const App = () => {
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/verify-account" element={<VerifyAccount />} />
                 <Route path="/dashboard/*" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/payment-success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
                 <Route path="/payment-cancel" element={<ProtectedRoute><PaymentCancel /></ProtectedRoute>} />
