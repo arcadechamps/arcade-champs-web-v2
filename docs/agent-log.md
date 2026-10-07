@@ -54,3 +54,44 @@ Starting the Vite dev server failed with `Error: ENOENT: no such file or directo
 **Solution:**
 Purged the obsolete `node_modules/.vite` cache directory and executed `bun run dev -- --force` to regenerate a clean dependency cache reflecting current packages. Verified successful production build (`bun run build`) and live dev server page render at `http://localhost:8080/`.
 
+---
+
+## 2026-10-04 15:15 | Redirect Authenticated Users Away From Guest Auth Routes
+
+**What was implemented:**
+Created a reusable `GuestRoute` component that protects authentication-only pages (`/login`, `/signup`, `/forgot-password`) by redirecting authenticated users to `/dashboard` (or their intended destination). Updated `App.tsx` routes to wrap `/login`, `/signup`, and `/forgot-password` with `<GuestRoute>`, and added unit tests in `guest-route.test.tsx` covering all redirect conditions and loop-prevention edge cases.
+
+**Problem:**
+Authenticated users were able to directly navigate to and view `/login`, `/signup`, and `/forgot-password`, leading to poor UX and confusing interface states.
+
+**Solution:**
+Implemented `GuestRoute` following Clean Code and Single Responsibility principles to inspect `user` and `loading` states from `useAuth()`. It renders `null` during auth loading to eliminate UI flashes, renders the guest form when signed out, and redirects signed-in users immediately to `/dashboard` (or safe `location.state.from` path if non-auth), preventing redirect loops and blocking unwanted access.
+
+
+---
+
+## 2026-10-07 12:45 | CAPTCHA Stats Card Wired to Cloudflare Data
+
+**What was implemented:**
+Added the useCaptchaStats(days) hook (TanStack Query, 2 min staleTime, no refetch on focus) calling the admin-captcha-stats edge function, and rebuilt CaptchaStatsCard with a 7/30 day toggle, totals (issued, solved, unsolved, solve rate, auto vs click) and a daily stacked bar chart.
+
+**Problem:**
+The card was a Coming soon placeholder while the backend function was ready.
+
+**Solution:**
+Replaced the placeholder with live data; 403 (non-admin) is detected and not retried, and any error shows Couldn't load stats.
+
+
+---
+
+## 2026-10-07 14:40 | Removed Broken 30-day CAPTCHA Filter
+
+**What was implemented:**
+Removed the 7/30 day toggle from CaptchaStatsCard; the card now always shows the last 7 days.
+
+**Problem:**
+Selecting 30d made admin-captcha-stats fail (card showed Couldn't load stats) while 7d worked. The frontend sends the identical request apart from days, so the failure is on the backend/Cloudflare side.
+
+**Solution:**
+Dropped the filter and narrowed CaptchaStatsRange to 7. Re-add once Hamza confirms the function supports 30 days.
+

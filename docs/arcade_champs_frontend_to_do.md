@@ -12,7 +12,7 @@ The backend is finished and live. Everything below is frontend work, and it's th
 | 2 | Re-verification code screen | Dormant detection can't be switched on without it | High |
 | 3 | Admin dashboard: Security section | Client deliverable: metrics, dormant users, reminders | High |
 | 4 | Small cleanups (`.example.env` etc.) | Housekeeping | Normal |
-| | Cloudflare captcha stats card | Hamza is sending the Cloudflare API details soon | Placeholder for now |
+| | Cloudflare captcha stats card | Wired to `admin-captcha-stats` edge function | Done |
 
 ## What's already done (backend)
 * CAPTCHA is ON in Supabase. Any auth call without a Turnstile token now fails with `captcha_failed`.
@@ -149,8 +149,8 @@ const { data: saved } = await supabase.rpc('admin_set_reminder_settings', {
 ```
 Small form: on/off switch, "days between reminders", "max reminders per player". Show `inactive_days` and `detection_enabled` as read-only (those stay backend-controlled). Invalid values come back as an error, so show it in a toast.
 
-### 3g. CAPTCHA stats card (placeholder)
-CAPTCHA pass/fail numbers come from Cloudflare, not our database. Hamza is sending the Cloudflare API details soon and will add a function for it. For now, build an empty card titled "CAPTCHA challenges" (solved / failed / total, last 7 days) with "Coming soon". Don't wait on this. Start everything else now.
+### 3g. CAPTCHA stats card (DONE)
+CAPTCHA numbers come from Cloudflare via the admin-only edge function `admin-captcha-stats` (`body: { days }`). Implemented in `CaptchaStatsCard.tsx` with the `useCaptchaStats(days)` hook: totals (issued, solved, unsolved, solve rate, auto vs click) and a daily stacked bar chart for the last 7 days. The 30-day toggle was removed because `days: 30` returned an error from the function (to confirm with Hamza; re-add the toggle once fixed). Non-admins get a 403; any error shows "Couldn't load stats".
 
 ## 4. Small cleanups
 * `.example.env`: replace `VITE_RECAPTCHA_SITE_KEY` with `VITE_TURNSTILE_SITEKEY`.
