@@ -23,14 +23,6 @@ const StatCard = ({ label, value, hint }: StatCardProps) => (
   </Card>
 );
 
-const StatusBadge = ({ label, enabled }: { label: string; enabled: boolean }) => (
-  <Badge
-    variant="outline"
-    className={cn(enabled ? "border-primary/50 text-primary" : "border-border text-muted-foreground")}
-  >
-    {label}: {enabled ? "ON" : "OFF"}
-  </Badge>
-);
 
 const buildStatCards = (summary: DormantSummary): StatCardProps[] => [
   { label: "Total users", value: summary.total_users },
@@ -58,8 +50,6 @@ const SecuritySummaryCards = () => {
   return (
     <div className="space-y-4" id="security-summary">
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge label="Dormant detection" enabled={summary.detection_enabled} />
-        <StatusBadge label="Reminders" enabled={summary.reminders_enabled} />
         {summary.login_tracking_since && (
           <span className="text-xs text-muted-foreground">
             Login history since {formatDateTime(summary.login_tracking_since)}
@@ -71,11 +61,6 @@ const SecuritySummaryCards = () => {
           <StatCard key={card.label} {...card} />
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
-        {summary.last_run
-          ? `Last dormant check ${formatDateTime(summary.last_run.ran_at)}: ${summary.last_run.candidates} candidates, ${summary.last_run.newly_flagged} newly flagged, ${summary.last_run.cleared} cleared, ${summary.last_run.reminders_queued} reminders queued.`
-          : "No dormant check has run yet."}
-      </p>
     </div>
   );
 };
