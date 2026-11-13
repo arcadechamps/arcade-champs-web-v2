@@ -46,7 +46,8 @@ const AdminOverview = ({ profiles, contests, sessions, transactions = [], antiCh
   const pendingWithdrawals = transactions.filter(t => t.type === "payout" && t.status === "pending");
   const pendingWithdrawalTotal = pendingWithdrawals.reduce((s, t) => s + Math.abs(t.amount_cents), 0);
 
-  const zeroScoreSessions = sessions.filter(s => s.score === 0 && s.status === "ended");
+  // null = score couldn't be read from the screenshot; needs review just like a 0
+  const zeroScoreSessions = sessions.filter(s => (s.score === 0 || s.score == null) && s.status === "ended");
 
   const [timeRange, setTimeRange] = useState<"7d" | "4w" | "3m" | "6m" | "all">("4w");
 
