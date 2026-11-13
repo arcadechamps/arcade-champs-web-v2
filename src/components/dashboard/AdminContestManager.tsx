@@ -747,10 +747,10 @@ const AdminContestManager = ({ contests, games, winners, participants = [], prof
                                       </Badge>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      {gs.score === 0 && gs.status === "ended" && (
-                                        <AlertTriangle className="h-3 w-3 text-yellow-500" title="Score is 0. Verify screenshot." />
+                                      {(gs.score === 0 || gs.score == null) && gs.status === "ended" && (
+                                        <AlertTriangle className="h-3 w-3 text-yellow-500" title={gs.score == null ? "Score couldn't be read. Verify screenshot." : "Score is 0. Verify screenshot."} />
                                       )}
-                                      <span className="font-arcade text-primary">{(gs.score ?? 0).toLocaleString()}</span>
+                                      <span className="font-arcade text-primary">{gs.score != null ? gs.score.toLocaleString() : "—"}</span>
                                       <Button
                                         size="sm"
                                         variant="ghost"
