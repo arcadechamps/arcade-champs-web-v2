@@ -4,7 +4,8 @@ const WEBHOOK_URL =
   "https://arcadechamps.app.n8n.cloud/webhook/71c8c8f1-b181-4809-9a17-ba1cf226feaa";
 
 export interface ScoreExtractionResult {
-  score?: number;
+  // null = the webhook could not read a score (e.g. "Error to fetch score")
+  score?: number | null;
   [key: string]: unknown;
 }
 
@@ -32,10 +33,12 @@ export const useScoreExtraction = () => {
         if (typeof raw === "string" && !isNaN(Number(raw))) return { score: Number(raw) };
         if (typeof raw?.score === "number") return raw as ScoreExtractionResult;
         if (typeof raw?.score === "string" && !isNaN(Number(raw.score))) return { score: Number(raw.score) };
-        return { score: 0, ...raw } as ScoreExtractionResult;
+        // Anything else ("Error to fetch score", "Empty or Wrong Image", ...) is a failed read
+        const extra = raw && typeof raw === "object" ? raw : { message: raw };
+        return { ...extra, score: null } as ScoreExtractionResult;
       } catch {
         console.warn("[ScoreExtraction] Non-JSON response:", text);
-        return { score: 0, message: text } as ScoreExtractionResult;
+        return { score: null, message: text } as ScoreExtractionResult;
       }
     },
   });
