@@ -373,9 +373,12 @@ const ContestPlay = () => {
       // 2. Extract score via webhook
       extractScore({ file, gameName: game.title }, {
         onSuccess: async (data) => {
-          const rawScore = typeof data === "number" ? data : (typeof data?.score === "number" ? data.score : (typeof data?.score === "string" ? Number(data.score) : 0));
-          const score = isNaN(rawScore) ? 0 : rawScore;
-          setExtractedScore(score);
+          const rawScore = typeof data === "number" ? data : (typeof data?.score === "number" ? data.score : (typeof data?.score === "string" ? Number(data.score) : NaN));
+          // null = score could not be read; saved as null so it isn't mistaken for a real 0
+          const score: number | null = Number.isFinite(rawScore) ? rawScore : null;
+          if (score !== null) {
+            setExtractedScore(score);
+          }
 
           const { error } = await supabase
             .from("game_sessions")
@@ -391,12 +394,19 @@ const ContestPlay = () => {
             console.error("[ContestPlay] Failed to update session score:", error);
             handleNetworkError(error, "Score");
           } else {
-            toast.success(`Score recorded: ${score}`);
+            if (score !== null) {
+              toast.success(`Score recorded: ${score}`);
+            } else {
+              toast.error("Couldn't read your score from the screenshot. It will be reviewed.");
+            }
             queryClient.invalidateQueries({ queryKey: ["dashboard", user.id] });
           }
-          // Submit anti-cheat verdict with real score
-          await submitVerdictRef.current(score);
+          // Submit anti-cheat verdict with real score (0 when unread, same as before)
+          await submitVerdictRef.current(score ?? 0);
           setExtractingScore(false);
+          if (score === null) {
+            setExtractionFailed(true);
+          }
           isProcessingScreenshotRef.current = false;
         },
         onError: async (err) => {
@@ -405,6 +415,7 @@ const ContestPlay = () => {
           supabase
             .from("game_sessions")
             .update({
+              score: null,
               status: "ended" as const,
               end_timestamp_ms: Date.now(),
               ended_at: new Date().toISOString(),
@@ -488,7 +499,7 @@ const ContestPlay = () => {
         await supabase
           .from("game_sessions")
           .update({
-            score: 0,
+            score: null,
             status: "ended" as const,
             end_timestamp_ms: Date.now(),
             ended_at: new Date().toISOString(),
@@ -502,10 +513,10 @@ const ContestPlay = () => {
         queryClient.invalidateQueries({ queryKey: ["dashboard", currentUser.id] });
       }
 
-      setExtractedScore(0);
       setExtractingScore(false);
+      setExtractionFailed(true);
       isProcessingScreenshotRef.current = false;
-      toast.error("Score extraction timed out — session ended with score 0");
+      toast.error("Couldn't capture your score — the session has ended.");
     }, 6000);
   }, [gameStarted, timeUp, extractedScore, queryClient]);
 
